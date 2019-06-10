@@ -14,7 +14,11 @@ contract IPeriod {
     event premiumPaid(address _policyholder);
     event activePeriod(address _secretary);
     event postPeriod(address _secretary);
-    
+    event claimOpened(address _policyholder);
+    event claimRejected(address _policyholder);
+    event claimApproved(address _policyholder);
+    event defected(address _defector);
+
     ///MAPPINGS///
     mapping(address => mapping(uint => TandaLibrary.period)) periods;
     mapping(address => address[]) participants;
