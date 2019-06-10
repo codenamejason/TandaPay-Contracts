@@ -18,7 +18,6 @@ contract ITimelock is Secondary {
     
     ///EVENTS
     event locked(address _secretary, uint timelock);
-    event remitted(address _secretary);
     
     ///STATE VARIABLES///
     address secretary;
@@ -27,11 +26,6 @@ contract ITimelock is Secondary {
     
 
     ///FUNCTIONS///
-    /**
-     * Get the overpayment of a given subgroup
-     * @param _subgroup the given subgroup being measured/ calculated
-     **/
-    function getOverpayment(uint _subgroup) public;
     
     /**
      * Lock the funds that have been sent to this address
