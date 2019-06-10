@@ -26,22 +26,16 @@ contract ICRON {
     /**
      * @dev called by remit()
      * Pays out defections and strips claims in toxic subgroups
+     * @return _payout the value to be paid out after defections are taken into account
      **/
-    function processDefections() internal;
+    function processDefections() internal returns (uint16 _payout);
     
     /**
      * @dev called by remit()
      * Process all of the remaining claims
-     **/
-    function processClaims() internal;
-    
-    /**
-     * @dev called by processClaims()
-     * Process a single claim given that it is valid
-     * @param _claim the claim being processed
      * @param _payout the value of Dai being paid in the claim
      **/
-    function processClaim(TandaLibrary.claim memory _claim, uint8 _payout) internal;
+    function processClaims(uint16 _payout) internal;
     
     /**
      * @dev called by remit()
