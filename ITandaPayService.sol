@@ -91,18 +91,20 @@ contract ITandaPayService {
 
     /**
      * @dev called by remitGroup()
-     * Pays out defections and strips claims in toxic subgroups
-     * @return _group the address of the group being remitted
+     * Process all of the remaining claims
+     * @param _group the address of the group being remitted
+
      **/
-    function processDefections() internal returns (address _group);
+    function processClaims(address _group) internal;
 
     /**
      * @dev called by remitGroup()
-     * Process all of the remaining claims
-     * @param _group the address of the group being remitted
-     * @param _payout the value being paid out in the claim
+     * Strips claims in toxic subgroups
+     * Defections are immidiately paid out by defect() in Group
+     * @param _group
+     * @return _group the address of the group being remitted
      **/
-    function processClaims(address _group, uint16 _payout) internal;
+    function processDefections(address _group) internal;
 
     /**
      * @dev called by remitGroup()
