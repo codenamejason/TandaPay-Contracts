@@ -14,7 +14,7 @@ contract IGroup is Secondary {
     ///EVENTS///
     event policyholderAdded(address _policyholder);
     event policyholderRemoved(address _policyholder);
-    event subgroupChange(address _policyholder);
+    event subgroupChange(address _policyholder, uint8 _subgroup);
     event premiumPaid(address _policyholder);
     event locked(uint timelock);
     event refund();
