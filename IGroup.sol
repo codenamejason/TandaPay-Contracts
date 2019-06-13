@@ -17,7 +17,7 @@ contract IGroup is Secondary {
     event subgroupChange(address _policyholder, uint8 _subgroup);
     event premiumPaid(address _policyholder);
     event refund();
-    event activePeriod(uint timelock);
+    event activePeriod(uint _timelock);
     event postPeriod();
     event claimOpened(address _policyholder);
     event claimRejected(address _policyholder);
@@ -29,7 +29,6 @@ contract IGroup is Secondary {
     mapping(uint16 => period) periods;
 
     ///ADDRESSES///
-    address this;
     address secretary;
     address[] activeParticipants;
 
