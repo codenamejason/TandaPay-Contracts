@@ -1,6 +1,7 @@
 pragma solidity >= 0.4.0 < 0.7.0;
 
 import 'http://github.com/OpenZeppelin/openzeppelin-solidity/contracts/token/ERC20/IERC20.sol';
+//import './IGroup.sol';
 
 /**
  * @author blOX Consulting LLC.
@@ -21,11 +22,10 @@ contract ITandaPayService {
     ///MAPPING///
     mapping(address => bool) admin;
     mapping(address => address) approvedSecretaries;
-    mapping(address => address) approvedPolicyholders;
 
     ///CONTRACTS///
     IERC20 Dai;
-
+    
     ///ENUMERATIONS///
     enum policyholderState {UNPAID, PAID, DEFECTED}
     enum periodState {PRE, ACTIVE, POST}
@@ -60,11 +60,13 @@ contract ITandaPayService {
     /**
      * @dev modifier onlyAdmin
      * @dev modifier validPremium
-     * Approve a secretary and create a group
+     * @dev construct new Group(_to, _premium)
+     * Approve a secretary and create a new group
      * @param _to the address being given a secretary role
-     * @param _group the address of the constructed group
+     * @param _premium the premium paid in Dai by all policyholders
+     * @return _group the address of the Group contact
      **/
-    function addGroup(address _to, uint8 premium) public returns (address _group);
+    function createGroup(address _to, uint8 premium) public returns (address _group);
 
     /**
      * @dev modifier onlyAdmin
