@@ -1,145 +1,205 @@
 pragma solidity >= 0.4.0 < 0.7.0;
 
 import './IGroup.sol';
-import 'http://github.com/OpenZeppelin/openzeppelin-solidity/contracts/token/ERC20/IERC20.sol';
 
+/**
+ * @author blOX Consulting LLC.
+ * Date: 6.17.19
+ * Interface for TandaPay Group child contract
+ **/
 contract Group is IGroup {
     
-    IERC20 Dai;
-    
-    timelock locks;
-    
-    modifier activePolicyholder(address _query) {
-        require(periods[periodIndex].policyholders[_query] == policyholderState.PAID,
-            "Policyholder is not active in the current Period!");
-        _;
-    }
-    
-    modifier correctPeriod(periodState _state) {
-        require(periods[periodIndex].state == _state, "Incorrect period state for this action!");
-        _;
-    }
-    
-    modifier isSecretary(address _query) {
-        require(secretary == _query, "Address is not this Group's Secretary!");
-        _;
-    }
-    
-    modifier isPolicyholder(address _query) {
-        require(policyholders[_query] != 0, "Address is not a Policyholder in this Group!");
-        _;
-    }
-    
-    constructor(address _secretary, uint8 _premium) public {
+    constructor(address _secretary, uint8 _premium, address _dai) public {
         secretary = _secretary;
         premium = _premium;
-        toggleKovan();
+        Dai = IERC20(_dai);
     }
     
-    function addPolicyholder(address _to, uint8 _subgroup) public isSecretary(msg.sender) correctPeriod(periodState.NONE) {
+    function addPolicyholder(address _to, uint8 _subgroup) public isSecretary() unlocked {
         require(policyholders[_to] == 0, "Policyholder already exists!");
-        require(subgroupCounts[_subgroup] < 7, "Subgroup is full!");
+        require(subgroupCounts[_subgroup].current() < 7, "Subgroup is full!");
+        
         policyholders[_to] = _subgroup;
-        subgroupCounts[_subgroup]++;
+        subgroupCounts[_subgroup].increment();
         emit policyholderAdded(_to);
     }
     
-    function removePolicyholder(address _from) public isSecretary(msg.sender) correctPeriod(periodState.NONE) {
+    function removePolicyholder(address _from) public isSecretary() unlocked {
         require(policyholders[_from] != 0, "Policyholder does not exist!");
-        subgroupCounts[policyholders[_from]]--;
+        
+        subgroupCounts[policyholders[_from]].decrement();
         policyholders[_from] = 0;
         emit policyholderRemoved(_from);
     }
     
-    function changeSubgroup(address _policyholder, uint8 _subgroup) public isSecretary(msg.sender) correctPeriod(periodState.NONE){
-        require(subgroupCounts[_subgroup] < 7, "Subgroup is full!");
-        subgroupCounts[policyholders[_policyholder]]--;
-        subgroupCounts[_subgroup]++;
+    function changeSubgroup(address _policyholder, uint8 _subgroup) public isSecretary() unlocked {
+        require(subgroupCounts[_subgroup].current() < 7, "Subgroup is full!");
+        
+        subgroupCounts[policyholders[_policyholder]].decrement();
+        subgroupCounts[_subgroup].increment();
+        uint8 old = policyholders[_policyholder];
         policyholders[_policyholder] = _subgroup;
-        emit subgroupChange(_policyholder, _subgroup);
+        emit subgroupChange(_policyholder, old);
     }
     
-    function lock() public isSecretary(msg.sender) correctPeriod(periodState.NONE) {
-        require(size >= 50, "Insufficient size to begin pre-period!");
-        locks.pre = now + 3 days;
-        locks.active = now + 27 days;
-        locks.post = now + 30 days;
-        emit locked(locks.pre, locks.active, locks.post);
+    function lock() public isSecretary() unlocked {
+        require(groupSize.current() >= 50, "Insufficient size to begin pre-period!");
+        require(locks[uint(periodState.POST)] <= now, "Group is already in an escrow cycle!");
+        locks[uint(periodState.LOBBY)] = now;
+        locks[uint(periodState.PRE)] = now + 3 days;
+        locks[uint(periodState.ACTIVE)] = now + 27 days;
+        locks[uint(periodState.POST)] = now + 30 days;
+        emit locked();
     }
     
-    function payPremium() public isPolicyholder(msg.sender) correctPeriod(periodState.PRE) {
-        uint8 overpayment = (premium / subgroupCounts[policyholders[msg.sender]]);
+    function payPremium() public isPolicyholder() correctPeriod(periodState.PRE) {
+        uint8 overpayment = uint8(premium / subgroupCounts[policyholders[msg.sender]].current());
         require(Dai.balanceOf(msg.sender) >= premium + overpayment, "Insufficient Dai balance for Tanda Insurance!");
+        
         Dai.approve(address(this), premium + overpayment);
         Dai.transferFrom(msg.sender, address(this), premium + overpayment);
-        activeParticipants[participantIndex] = msg.sender;
-        participantToIndex[msg.sender] = participantIndex++;
+        participantIndex.increment();
+        activeParticipants[uint8(participantIndex.current())] = msg.sender;
+        participantToIndex[msg.sender] = uint8(participantIndex.current());
         emit premiumPaid(msg.sender);
     }
     
-    function openClaim() public activePolicyholder(msg.sender) correctPeriod(periodState.ACTIVE) {
-        require(periods[periodIndex].openedClaim[msg.sender] != 0, "Claimant already has an existing Claim!");
-        uint8 index = periods[periodIndex].claimIndex++;
-        periods[periodIndex].claims[index].policyholder = msg.sender;
-        periods[periodIndex].claims[index].state = claimState.OPEN;
+    function openClaim() public activePolicyholder() correctPeriod(periodState.ACTIVE) {
+        Period storage period = periods[uint16(periodIndex.current())];
+        require(period.openedClaim[msg.sender] == 0, "Claimant already has an existing Claim!");
+        
+        period.claimIndex.increment();
+        uint8 index = uint8(period.claimIndex.current());
+        period.claims[index].policyholder = msg.sender;
+        period.claims[index].state = claimState.OPEN;
         emit claimOpened(msg.sender);
     }
 
-    function rejectClaim(uint8 _index) public isSecretary(msg.sender) correctPeriod(periodState.POST) {
-        require(periods[periodIndex].claims[_index].state != claimState.REJECTED, "Can only reject open Claims!");
-        periods[periodIndex].claims[_index].state = claimState.REJECTED;
-        emit claimRejected(periods[periodIndex].claims[_index].policyholder);
+    function rejectClaim(address _claimant) public isSecretary() correctPeriod(periodState.POST) {
+        Period storage period = periods[uint16(periodIndex.current())];
+        uint8 index = period.openedClaim[_claimant];
+        require(index != 0, "Policyholder does not have an existing Claim!");
+        require(period.claims[index].state != claimState.REJECTED, "Can only reject open Claims!");
+        
+        period.claims[index].state = claimState.REJECTED;
+        emit claimRejected(_claimant);
     }
 
-    function approveClaim(uint8 _index) public isSecretary(msg.sender) correctPeriod(periodState.POST) {
-        require(periods[periodIndex].claims[_index].state != claimState.REJECTED, "Can only approve open Claims!");
-        periods[periodIndex].claims[_index].state = claimState.ACCEPTED;
-        emit claimApproved(periods[periodIndex].claims[_index].policyholder);
+    function approveClaim(address _claimant) public isSecretary() correctPeriod(periodState.POST) {
+        Period storage period = periods[uint16(periodIndex.current())];
+        uint8 index = period.openedClaim[_claimant];
+        require(index != 0, "Policyholder does not have existing claim!");
+        require(period.claims[index].state != claimState.REJECTED, "Can only approve open Claims!");
+        
+        period.claims[index].state = claimState.ACCEPTED;
+        emit claimApproved(_claimant);
     }
     
-    function defect() public activePolicyholder(msg.sender) correctPeriod(periodState.POST) {
-        periods[periodIndex].claims[periods[periodIndex].openedClaim[msg.sender]].state = claimState.REJECTED;
-        periods[periodIndex].defectionCount[policyholders[msg.sender]]++;
-        uint8 index = participantToIndex[msg.sender];
-        activeParticipants[index] = activeParticipants[participantIndex];
-        participantToIndex[activeParticipants[participantIndex--]] = index;
+    function defect() public activePolicyholder() correctPeriod(periodState.POST) {
+        Period storage period = periods[uint16(periodIndex.current())];
+        if(period.openedClaim[msg.sender] != 0)
+            removeClaim(period.openedClaim[msg.sender]);
+        uint8 subgroup = policyholders[msg.sender];
+        Counters.Counter storage subgroupDefectionCount = defectionCount[subgroup];
+        subgroupDefectionCount.increment();
+        if(subgroupDefectionCount.current() >= DEFECTION_THRESHOLD)
+            toxicSubgroup[subgroup] = true;
         Dai.transfer(msg.sender, premium);
+        removeParticipant(msg.sender);
         emit defected(msg.sender);
     }
     
-    /**
-     * @dev move to interface?
-     * @dev more workshopping: eject contract? coast til end?
-     * Give secretary rights to the TandaPayService contract
-     * Admins can reassign the role using TandaPayService at an arbitrary time
-     **/
     function overthrow() public onlyPrimary {
+        emit overthrown(secretary);
         secretary = primary();
     }
     
-    /**
-     * @dev move to interface
-     * install a 
-     **/
     function install(address _secretary) public onlyPrimary {
         require(secretary == primary(), "This contract is not owned by the TandaPayService!");
         secretary = _secretary;
+        emit installed(secretary);
     }
     
-    /**
-     * @dev to be removed in Draft 2
-     * Set the Dai IERC20 contract to track the Ethereum mainnent Dai Stablecoin
-     **/
-    function toggleMainnet() public onlyPrimary {
-        Dai = IERC20(0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359);
+    function remittable() public onlyPrimary returns (bool) {
+        uint timelock = locks[uint(periodState.POST)];
+        return(timelock != 0 && timelock < now);
     }
     
-    /**
-     * @dev to be removed in Draft 2
-     * @dev standard constructor call
-     * Set the Dai IERC20 contract to track the Kovan Dai Stablecoin
-     **/
-    function toggleKovan() public onlyPrimary {
-        Dai = IERC20(0xC4375B7De8af5a38a93548eb8453a498222C4fF2);
+    function remit() public onlyPrimary unlocked {
+        stripToxicSubgroups();
+        payClaims();
+        payRefunds();
+        unlock();
+    }
+    
+    function stripToxicSubgroups() internal {
+        Period storage period = periods[uint16(periodIndex.current())];
+        for(uint8 i = 1; i <= period.claimIndex.current(); i++) {
+            Claim storage claim = period.claims[i];
+            uint8 subgroup = policyholders[claim.policyholder];
+            if(toxicSubgroup[subgroup]){
+                emit toxicClaimStripped(claim.policyholder);
+                removeClaim(i);
+                i--;
+                period.claimIndex.decrement();
+            }
+        }
+    }
+    
+    function payClaims() internal {
+        Period storage period = periods[uint16(periodIndex.current())];
+        uint8 maxPayout = premium * 25;
+        uint8 claimIndex = uint8(period.claimIndex.current());
+        uint8 share = uint8(Dai.balanceOf(address(this))) / claimIndex;
+        if(share > maxPayout)
+            share = maxPayout;
+        for(uint8 i = 0; i < claimIndex; i++) {
+            address claimant = period.claims[i].policyholder;
+            Dai.transfer(claimant, share);
+            removeParticipant(claimant);
+        }
+    }
+    
+    function payRefunds() internal {
+        if(Dai.balanceOf(address(this)) > 0) {
+            uint8 participantsLength = uint8(participantIndex.current());
+            uint share = Dai.balanceOf(address(this)) / participantsLength;
+            for(uint8 i = 0; i < participantsLength; i++) {
+                address participant = activeParticipants[i];
+                Dai.transfer(participant, share);
+                delete participantToIndex[participant];
+                delete activeParticipants[i];
+            }
+        }
+    }
+    
+    function removeClaim(uint8 _index) internal {
+        Period storage period = periods[uint16(periodIndex.current())];
+        uint8 claimIndex = uint8(period.claimIndex.current());
+        address claimant = period.claims[claimIndex].policyholder;
+        period.claims[_index] = period.claims[claimIndex];
+        address newClaimant = period.claims[claimIndex].policyholder;
+        delete period.claims[claimIndex];
+        period.claimIndex.decrement();
+        delete period.openedClaim[claimant];
+        period.openedClaim[newClaimant] = claimIndex;
+    }
+    
+    function removeParticipant(address _participant) internal {
+        uint8 index = participantToIndex[_participant];
+        uint8 maxIndex = uint8(participantIndex.current());
+        activeParticipants[index] = activeParticipants[maxIndex];
+        delete activeParticipants[maxIndex];
+        participantToIndex[activeParticipants[index]] = index;
+        delete participantToIndex[_participant];
+        participantIndex.decrement();
+    }
+    
+    function unlock() internal unlocked {
+        delete locks[uint(periodState.LOBBY)];
+        delete locks[uint(periodState.PRE)];
+        delete locks[uint(periodState.ACTIVE)];
+        delete locks[uint(periodState.POST)];
+        periodIndex.increment();
     }
 }
