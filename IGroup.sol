@@ -16,9 +16,7 @@ contract IGroup is Secondary {
     event policyholderRemoved(address _policyholder);
     event subgroupChange(address _policyholder, uint8 _subgroup);
     event premiumPaid(address _policyholder);
-    event refund();
-    event activePeriod(uint _timelock);
-    event postPeriod();
+    event locked(uint _pre, uint _active, uint _post);
     event claimOpened(address _policyholder);
     event claimRejected(address _policyholder);
     event claimApproved(address _policyholder);
@@ -26,22 +24,25 @@ contract IGroup is Secondary {
 
     ///MAPPINGS///
     mapping(address => uint8) policyholders;
+    mapping(uint8 => uint8) subgroupCounts;
     mapping(uint16 => period) periods;
+    mapping(uint8 => address) activeParticipants;
+    mapping(address => uint8) participantToIndex;
 
     ///ADDRESSES///
-    address secretary;
-    address[] activeParticipants;
+    address public secretary;
+    
 
     ///ENUMERATIONS///
     enum policyholderState {UNPAID, PAID, DEFECTED}
-    enum periodState {PRE, ACTIVE, POST}
+    enum periodState {NONE, PRE, ACTIVE, POST}
     enum claimState {REJECTED, OPEN, ACCEPTED}
 
     ///INTEGERS///
     uint8 premium;
     uint8 size;
     uint16 periodIndex;
-    uint timelock;
+    uint8 participantIndex;
 
     ///STRUCTS///
     struct claim {
@@ -51,9 +52,17 @@ contract IGroup is Secondary {
     
     struct period {
         periodState state;
-        claim[] claims;
+        uint8 claimIndex;
+        mapping(uint8 => claim) claims;
+        mapping(address => uint8) openedClaim;
         mapping(address => policyholderState) policyholders;
         mapping(uint8 => uint8) defectionCount;
+    }
+    
+    struct timelock {
+        uint pre;
+        uint active;
+        uint post;
     }
 
     ///FUNCTIONS///
@@ -87,14 +96,6 @@ contract IGroup is Secondary {
     function payPremium() public;
     
     /**
-     * @dev modifier onlySecretary, prePeriod
-     * Secretary activates the 27 day insurance contract
-     * Premiums are locked into this group's address
-     * @dev restrictions on participant #?
-     **/
-    function startPeriod() public;
-    
-    /**
      * @dev modifier onlyPolicyholder, activePeriod
      * Policyholder opens a new claim
      **/
@@ -105,14 +106,14 @@ contract IGroup is Secondary {
      * Secretary rejects a claim
      * @param _index the index of the claim within the period
      **/
-    function rejectClaim(uint _index) public;
+    function rejectClaim(uint8 _index) public;
     
     /**
      * @dev function onlySecretary, activePeriod
      * Secretary approves a claim
      * @param _index the index of the claim being approved
      **/
-    function approveClaim(uint _index) public;
+    function approveClaim(uint8 _index) public;
     
     /**
      * @dev function onlyPolicyholder, postPeriod
@@ -121,4 +122,3 @@ contract IGroup is Secondary {
      **/
     function defect() public;
 }
-
