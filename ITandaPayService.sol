@@ -1,45 +1,65 @@
 pragma solidity >= 0.4.0 < 0.7.0;
 
 import 'http://github.com/OpenZeppelin/openzeppelin-solidity/contracts/token/ERC20/IERC20.sol';
-//import './IGroup.sol';
+import 'http://github.com/OpenZeppelin/openzeppelin-solidity/contracts/drafts/Counters.sol';
 
 /**
  * @author blOX Consulting LLC.
- * Date: 6.12.19
+ * Date: 6.17.19
  * Interface for main TandaPay service
  * Factory contract for groups
  * CRON/ Admin functionality
  **/
 contract ITandaPayService {
 
+    using Counters for Counters.Counter;
+
     ///EVENTS///
     event adminApproved(address _approved);
     event adminRevoked(address _revoked);
     event groupCreated(address _group);
     event secretaryRevoked(address _revoked, address _group);
+    event secretaryInstalled(address _group);
     event remitted(address _group);
 
     ///MAPPING///
     mapping(address => bool) administrators;
-    mapping(address => address) secretaries;
+    mapping(address => uint) secretaries;
+    mapping(uint => address) groups;
+
+    ///ADDRESSES///
+    address constant kovan = 0xC4375B7De8af5a38a93548eb8453a498222C4fF2;
+    address constant mainnet = 0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359;
+
+    ///STRUCTS///
+    struct Claim {
+        address policyholder;
+        claimState state;
+    }
+    
+    struct Period {
+        Counters.Counter claimIndex;
+        mapping(uint8 => Claim) claims;
+        mapping(address => uint8) openedClaim;
+    }
 
     ///CONTRACTS///
     IERC20 Dai;
+    Counters.Counter groupCount;
     
     ///ENUMERATIONS///
-    enum policyholderState {UNPAID, PAID, DEFECTED}
-    enum periodState {NONE, PRE, ACTIVE, POST}
+    enum periodState {LOBBY, PRE, ACTIVE, POST}
     enum claimState {REJECTED, OPEN, ACCEPTED}
 
     ///INTEGERS///
     uint8 constant MIN_PREMIUM = 5;
     uint8 constant MAX_PREMIUM = 50;
-    uint groupCount;
 
-    ///ADDRESSES///
-    address constant kovan = 0xC4375B7De8af5a38a93548eb8453a498222C4fF2;
-    address constant mainnet = 0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359;
-    address[] groupContracts;
+    ///MODIFIERS///
+     modifier isAdmin() {
+        require(administrators[msg.sender], "Address is not a TandaPay Administrator!");
+        _;
+    }
 
     ///FUNCTIONS///
     /**
@@ -59,7 +79,7 @@ contract ITandaPayService {
     function removeAdmin(address _from) public;
 
     /**
-     * @dev modifier onlyAdmin
+     * @dev modifier isAdmin
      * @dev modifier validPremium
      * @dev construct new Group(_to, _premium)
      * Approve a secretary and create a new group
@@ -76,6 +96,15 @@ contract ITandaPayService {
      * @dev Ownership of Tanda group assigned to this contract
      **/
     function removeSecretary(address _from) public;
+    
+    /**
+     * @dev modifier isAdmin
+     * @dev only if group's construction Secretary was removed
+     * Give a group a new secretary
+     * @param _secretary the address being given the role of Secretary
+     * @param _group the address of the Group contract
+     **/
+    function installSecretary(address _secretary, address _group) public;
 
     /**
      * @dev modifier onlyAdmin
@@ -91,27 +120,11 @@ contract ITandaPayService {
      * @param _group the address of the group being remitted
      **/
     function remitGroup(address _group) public;
-
+    
     /**
-     * @dev called by remitGroup()
-     * Process all of the remaining claims
-     * @param _group the address of the group being remitted
-
+     * @dev internal, called only by instantiation
+     * Set the contract address for IERC20 Dai
+     * @param _networkID the Network ID of the Ethereum Provider
      **/
-    function processClaims(address _group) internal;
-
-    /**
-     * @dev called by remitGroup()
-     * Strips claims in toxic subgroups
-     * Defections are immidiately paid out by defect() in Group
-     * @return _group the address of the group being remitted
-     **/
-    function processDefections(address _group) internal;
-
-    /**
-     * @dev called by remitGroup()
-     * If possible, refund an equal portion of the Dai to each policyholder
-     * @param _group the group being refunded
-     **/
-    function processRefunds(address _group) internal;
+    function determineDaiAddress(uint _networkID) internal;
 }
