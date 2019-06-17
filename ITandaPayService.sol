@@ -15,29 +15,30 @@ contract ITandaPayService {
     ///EVENTS///
     event adminApproved(address _approved);
     event adminRevoked(address _revoked);
-    event groupCreated(address _group, address _secretary);
-    event secretaryRevoked(address _revoked);
+    event groupCreated(address _group);
+    event secretaryRevoked(address _revoked, address _group);
     event remitted(address _group);
 
     ///MAPPING///
-    mapping(address => bool) admin;
-    mapping(address => address) approvedSecretaries;
+    mapping(address => bool) administrators;
+    mapping(address => address) secretaries;
 
     ///CONTRACTS///
     IERC20 Dai;
     
     ///ENUMERATIONS///
     enum policyholderState {UNPAID, PAID, DEFECTED}
-    enum periodState {PRE, ACTIVE, POST}
+    enum periodState {NONE, PRE, ACTIVE, POST}
     enum claimState {REJECTED, OPEN, ACCEPTED}
 
     ///INTEGERS///
     uint8 constant MIN_PREMIUM = 5;
     uint8 constant MAX_PREMIUM = 50;
+    uint groupCount;
 
     ///ADDRESSES///
-    address constant kovan = 0xc4375b7de8af5a38a93548eb8453a498222c4ff2;
-    address constant mainnet = 0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359;
+    address constant kovan = 0xC4375B7De8af5a38a93548eb8453a498222C4fF2;
+    address constant mainnet = 0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359;
     address[] groupContracts;
 
     ///FUNCTIONS///
@@ -66,7 +67,7 @@ contract ITandaPayService {
      * @param _premium the premium paid in Dai by all policyholders
      * @return _group the address of the Group contact
      **/
-    function createGroup(address _to, uint8 premium) public returns (address _group);
+    function createGroup(address _to, uint8 _premium) public returns (address _group);
 
     /**
      * @dev modifier onlyAdmin
@@ -103,7 +104,6 @@ contract ITandaPayService {
      * @dev called by remitGroup()
      * Strips claims in toxic subgroups
      * Defections are immidiately paid out by defect() in Group
-     * @param _group
      * @return _group the address of the group being remitted
      **/
     function processDefections(address _group) internal;
@@ -115,4 +115,3 @@ contract ITandaPayService {
      **/
     function processRefunds(address _group) internal;
 }
-
