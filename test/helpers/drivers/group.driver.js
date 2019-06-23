@@ -3,6 +3,7 @@
  * @date 06.20.19
  * Groups.sol Smart Contract Driver
  */
+
 module.exports = {
 
     /**
@@ -14,6 +15,15 @@ module.exports = {
         return await _group.secretary();
     },
 
+    /**
+     * Get the premium of a given Group contract
+     * @param _group truffle-contract object of Group
+     * @return the value of premium, as a BN object
+     */
+    getPremium: async (_group) => {
+        return await _group.premium();
+    },
+
      /**
      * Add a single policyholder to the Tanda Group
      * @param _group truffe-contract object of Group contract
@@ -23,17 +33,96 @@ module.exports = {
      * @return the signed transaction object created by truffle
      */
     addPolicyholder: async (_group, _policyholder, _subgroup, _secretary) => {
-        let tx = await _group.addPolicyholder(_policyholder.address, _subgroup, { from: _secretary.address });
-        console.log(this.addedPolicyholderAddress(tx))
+        let tx = await _group.addPolicyholder(_policyholder.address, _subgroup, { from: _secretary });
+        //console.log("TX", tx);
+        //let receipt = await web3.eth.sendSignedTransaction(signed);
+        //console.log(receipt);
+        
     },
 
     /**
-     * Get the address of a group created by a transaction object
-     * @dev assumes TX is valid
-     * @param tx the transaction being mined for data
-     * @return the address of the newly deployed Group contract
+     * Remove a policyholder from a given Group contract
+     * @param _group truffle-contract object of Group
+     * @param _policyholder account being removed form policyholder role
+     * @param _secretary account permitted to call removePolicyholder
      */
-    addedPolicyholderAddress: async (tx) => { 
-        return tx.logs.filter(logs => logs.event == 'PolicyholderAdded')[0].args._group; 
+    removePolicyholder: async (_group, _policyholder, _secretary) => {
+
     },
+
+    /**
+     * Change the subgroup of a policyholder in a given Group contract
+     * @param _group truffle-contract object of Group
+     * @param _policyholder policyholder account switching subgroup
+     * @param _subgroup the subgroup the policyholder is switching to
+     * @param _secretary account permitted to call changeSubgroup
+     */
+    changeSubgroup: async (_group, _policyholder, _subgroup, _secretary) => {
+
+    },
+
+    /**
+     * Lock an escrow contract in a given Group, begin active phase
+     * @param _group truffle-contract object of Group
+     * @param _secretary account permitted to call lock
+     */
+    lock: async (_group, _secretary) => {
+
+    },
+
+    /**
+     * Pay a premium in a given Group as a policyholder
+     * @param _group truffle-contract object of Group
+     * @param _policyholder account permitted to call payPremium
+     */
+    payPremium: async (_group, _policyholder) => {
+
+    },
+
+    /**
+     * Open a claim in a given Group as a policyholder
+     * @param _group truffle-contract object of Group
+     * @param _policyholder account permitted to call openClaim
+     */
+    openClaim: async (_group, _policyholder) => {
+
+    },
+
+    /**
+     * Reject a claim in a given Group contract
+     * @param _group truffle-contract object of Group
+     * @param _claimant policyholder address identifying claim
+     * @param _secretary account permitted to call rejectClaim
+     */
+    rejectClaim: async (_group, _claimant, _secretary) => {
+
+    },
+
+    /**
+     * Approve a claim in a given Group contract
+     * @param _group truffle-cotnract object of Group
+     * @param _claimant policyholder address identifying claim
+     * @param _secretary account permitted to call approveClaim
+     */
+    approveClaim: async (_group, _claimant, _secretary) => {
+
+    },
+
+    /**
+     * Defect from a given Group contract as a policyholder
+     * @param _group truffle-contract object of Group
+     * @param _policyholder account permitted to call defect
+     */
+    defect: async (_group, _policyholder) => {
+
+    },
+
+    /**
+     * Determine whether a Group contract's escrow is ready to remit
+     * @param _group truffle-contract object of Group
+     * @return true if the timelock has expired, and false otherwise
+     */
+    remittable: async(_group) => {
+
+    }
 }

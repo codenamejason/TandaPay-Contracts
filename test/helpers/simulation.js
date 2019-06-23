@@ -4,18 +4,20 @@
  * Main script for test suite simulation
  */
 
+const { DaiDriver } = require("./driver.js");
+
  module.exports = {
     
     /**
-     * Make an array of 51 web3 account objects
-     * @dev accountsArr[0] will always be secretary
-     * @dev accountsArr[1] -> accountsArr[50] are policyholders
-     * @param web3Accounts the module 'web3.eth.accounts'
-     * @return an array of 51 newly generated web3 account objects
+     * Set array of web3 account objects according to web3.eth.accounts
+     * @param accounts the accounts wallet object provided by truffle
+     * @return array of 50 unlocked account objects
      */
-    makeAccounts: () => {
-        for(let i = 0; i < 51; i++)
-            web3.eth.personal.newAccount("password");
+    makePolicyholders: (accounts) => {
+        let policyholders = [];
+        for(let i = 0; i < 50; i++) 
+            policyholders[i] = accounts[i+2];
+        return policyholders;
     },
 
     /**
@@ -49,13 +51,28 @@
         }
         return arr;
     },
+
     /**
-     * Unlock all ethereum addresses in the Tanda Group
-     * @param accounts array of 51 addresses
+     * Mint Dai and give it to an arbitrary amount of addresses
+     * @param _dai truffle-contract object of Dai
+     * @param _accounts array of addresses to send Dai to
+     * @param _quantity the number of Dai tokens to mint to each address
+     * @param _minter account permitted to call mint
      */
-    unlockAll: async (accounts) => {
-        for(let i = 0; i < accounts.length; i++)
-            await web3.eth.accounts.wallet.add(accounts[i]);
-        console.log(web3.eth.accounts.wallet);
+    payDaiAccounts: async (_dai, _accounts, _quantity, _minter) => {
+        for(let i = 0; i < _accounts.length; i++)
+            await DaiDriver.giveDai(_dai, _accounts[i], _quantity, _minter);
+    },
+
+    /**
+     * Send ether to an arbitrary amount of addresses
+     * @dev used to ensure addresses can cover gas fee
+     * @param _accounts array of addresses to send Ether to
+     * @param _quantity the number of Ether to send to each address, as a BN object
+     * @param _admin account with sufficient ether to cover the transactions
+     */
+    payEtherAccounts: async (_accounts, _quantity, _admin) => {
+        for(let i = 0; i < _accounts.length; i++)
+            await web3.eth.sendTransaction({from: _admin, to: _accounts[i], value: _quantity})
     }
 }

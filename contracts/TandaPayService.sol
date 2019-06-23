@@ -29,13 +29,13 @@ contract TandaPayService is ITandaPayService {
     }
     
     function createGroup(address _to, uint8 _premium) public isAdmin() returns (address _group) {
-        require(groups[secretaries[_to]] == address(0) , "Address is already a Secretary!");
+        require(groups[secretaries[_to]] == address(0), "Address is already a Secretary!");
         require(MIN_PREMIUM < _premium && _premium <= MAX_PREMIUM, "Premium is out of bounds! (Too high or low)");
         Group group = new Group(_to, _premium, address(Dai));
+        groupCount.increment();
         _group = address(group);
         groups[groupCount.current()] = _group;
         secretaries[_to] = groupCount.current();
-        groupCount.increment();
         emit GroupCreated(_group);
     }
     

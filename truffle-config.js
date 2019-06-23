@@ -10,8 +10,9 @@ module.exports = {
 
   networks: {
     development: {
-      provider: () => { return new HDWalletProvider(process.env.MNEMONIC, "http://127.0.0.1:8545") },
-      network_id: "*"
+      provider: () => { return new HDWalletProvider(process.env.MNEMONIC, "http://127.0.0.1:8545", 0, 60) },
+      network_id: "*",
+      gasLimit: 7000000
     },
     kovan: {
       provider: () => { return new HDWalletProvider(process.env.MNEMONIC, process.env.KOVAN) },
