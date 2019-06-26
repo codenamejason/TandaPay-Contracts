@@ -43,6 +43,10 @@ contract Group is IGroup {
         policyholders[_policyholder] = _subgroup;
         emit SubgroupChange(_policyholder, old);
     }
+
+    function size() public returns (uint) {
+        return groupSize.current();
+    }
     
     function lock() public isSecretary() unlocked {
         require(groupSize.current() >= 50, "Insufficient size to begin pre-period!");
@@ -147,7 +151,7 @@ contract Group is IGroup {
             }
         }
     }
-    
+    //
     function payClaims() internal {
         Period storage period = periods[uint16(periodIndex.current())];
         uint8 maxPayout = premium * 25;

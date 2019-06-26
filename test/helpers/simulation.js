@@ -4,19 +4,23 @@
  * Main script for test suite simulation
  */
 
-const { DaiDriver } = require("./driver.js");
+const { GroupDaiDriver } = require("./driver.js");
+const time = require("./time")
 
  module.exports = {
     
     /**
      * Set array of web3 account objects according to web3.eth.accounts
-     * @param accounts the accounts wallet object provided by truffle
-     * @return array of 50 unlocked account objects
+     * @dev use offset to choose starting index for policyholders in web3 accounts
+     * @param _accounts the accounts wallet object provided by truffle
+     * @param _admin account permitted
+     * @return array of 50 policyholders
      */
-    makePolicyholders: (accounts) => {
+    makePolicyholders: (_accounts, _admin) => {
         let policyholders = [];
+        let offset = 10;
         for(let i = 0; i < 50; i++) 
-            policyholders[i] = accounts[i+2];
+            policyholders[i] = _accounts[i+offset];
         return policyholders;
     },
 
@@ -30,6 +34,51 @@ const { DaiDriver } = require("./driver.js");
             subgroups.push(Math.floor(i/7));
         let shuffled_subgroups = module.exports.fisherYatesShuffle(subgroups);
         return shuffled_subgroups;         
+    },
+
+    /**
+     * Dust all existing accounts in the global web3 instance with .02 Ether, except for the first account
+     * @dev this is a pretty crude hack; don't want to waste more time looking for a 'correct' solution
+     * @param _accounts all web3 accounts
+     **/
+    dust: async (_accounts) => {
+        let quantity = web3.utils.toWei('0.025', 'ether');
+        for(let i = 2; i < _accounts.length; i++)
+            await web3.eth.sendTransaction({from: _accounts[1], to: _accounts[i], value: quantity});
+    },
+
+    /**
+     * Mint Dai to an array of accounts, generally an array of Policyholders.
+     * @dev use quantity to choose stipend of Dai to mint to each address
+     * @param Dai truffle-contract object of Dai contract
+     * @param _accounts array of addresses to mint to
+     * @param _minter address permitted to mint from the Dai contract
+     */
+    mintPolicyholders: async (Dai, _accounts, _minter) => {
+        let quantity = web3.utils.toBN(100);
+        for(let i = 0; i < _accounts.length; i++) 
+            await Dai.mint(_accounts[i], quantity, {from: _minter});
+    },
+
+    /**
+     * Add every address in _accounts to Tanda Group _group as a Policyholder
+     * @param _group truffle-contract object of Group contract
+     * @param _accounts array of addresses to add to Group contract as Policyholders
+     * @param _subgroups array of integers corresponding to account subgroup id
+     * @param _secretary address permitted to add Policyholders in the Group contract
+     */
+    allPHinGroup: async (_group, _accounts, _subgroups, _secretary) => {
+        for(let i = 0; i < _accounts; i++)
+            await GroupDriver.addPolicyholder(_group, _accounts[i], _subgroups, _secretary);
+    },
+
+    /**
+     * Increase the time in the local EVM
+     * @dev TandaPay'ssignificant times are all days apart; this is a shorthand
+     * @param _days the number of days for the evm to pass
+     */
+    passDays: async (_days) => {
+        await time.increase(time.duration.days(web3.utils.toBN(_days)));
     },
 
     /**
@@ -50,29 +99,5 @@ const { DaiDriver } = require("./driver.js");
             arr[random] = temporary;
         }
         return arr;
-    },
-
-    /**
-     * Mint Dai and give it to an arbitrary amount of addresses
-     * @param _dai truffle-contract object of Dai
-     * @param _accounts array of addresses to send Dai to
-     * @param _quantity the number of Dai tokens to mint to each address
-     * @param _minter account permitted to call mint
-     */
-    payDaiAccounts: async (_dai, _accounts, _quantity, _minter) => {
-        for(let i = 0; i < _accounts.length; i++)
-            await DaiDriver.giveDai(_dai, _accounts[i], _quantity, _minter);
-    },
-
-    /**
-     * Send ether to an arbitrary amount of addresses
-     * @dev used to ensure addresses can cover gas fee
-     * @param _accounts array of addresses to send Ether to
-     * @param _quantity the number of Ether to send to each address, as a BN object
-     * @param _admin account with sufficient ether to cover the transactions
-     */
-    payEtherAccounts: async (_accounts, _quantity, _admin) => {
-        for(let i = 0; i < _accounts.length; i++)
-            await web3.eth.sendTransaction({from: _admin, to: _accounts[i], value: _quantity})
     }
 }

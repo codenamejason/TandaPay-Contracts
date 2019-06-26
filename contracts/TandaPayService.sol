@@ -24,7 +24,7 @@ contract TandaPayService is ITandaPayService {
     
     function removeAdmin(address _from) public isAdmin() {
         require(administrators[_from], "Address is not an Administrator!");
-        administrators[_from] = false;
+        delete administrators[_from];
         emit AdminRevoked(_from);
     }
     

@@ -1,71 +1,109 @@
 /**
  * @author blOX Consulting LLC
- * @date June 20, 2019
+ * @date June 26, 2019
  * Main test script for TandaPayServices
  **/
 
 const Simulator = require('./helpers/simulation');
 const { DaiDriver, ServiceDriver, GroupDriver } = require("./helpers/driver.js");
+require('chai').use(require('chai-as-promised')).should();
 
 contract("TandaPayService", async (accounts) => {
-    let premium = web3.utils.toBN(20);
+    // account 0 = administrator
+    // account 1 = duster bank
+    // account 2-9 = secretaries
+    // account 10-59 = policyholders
+    // account 60-79 = revert dummies
     let Dai, TandaPayService, Group;
+    let secretary;
     let admin = accounts[0];
-    let secretary = accounts[1];
     let policyholders = Simulator.makePolicyholders(accounts);
     let subgroups = Simulator.makeSubgroups(policyholders);
-
-    
+    let premium = web3.utils.toBN(20);
 
     before(async () => {
-        Dai = await DaiDriver.makeDaiContract();
-        let stipend = web3.utils.toBN(100);
-        await Simulator.payDaiAccounts(Dai, policyholders, stipend, admin);
-        let quantity = web3.utils.toWei('1', 'ether');
-        await Simulator.payEtherAccounts(policyholders, quantity, admin);
-        TandaPayService = await ServiceDriver.createService(Dai.address, admin);
-   
-        //Group = await ServiceDriver.createGroup(TandaPayService, secretary, premium, admin);
-        //console.log(Group);
-        //console.log("3"); */
+        
+        Dai = await DaiDriver.deploy();
+        TandaPayService = await ServiceDriver.deploy();
+        await Simulator.dust(accounts);
+        await Simulator.mintPolicyholders(Dai, policyholders, admin);
+        
+        /* let before = (await web3.eth.getBlock('latest')).timestamp;
+        console.log("before timestamp: ", before);
+        await Simulator.passTime(3);
+        let after = (await web3.eth.getBlock('latest')).timestamp;
+        console.log("after timestamp: ", after); */
     });
 
     describe('Role-based Authentication Checks', async () => {
         describe('Admin RBA Check', async() => {
             it('Only administrators can call addAdmin()', async () => {
-
+                await ServiceDriver.addAdmin(TandaPayService, accounts[60], accounts[60])
+                    .should.be.rejectedWith('revert');
+                await ServiceDriver.addAdmin(TandaPayService, accounts[60], admin)
+                    .should.be.fulfilled;               
             });
             it('Only administrators can call removeAdmin()', async () => {
-    
+                await ServiceDriver.removeAdmin(TandaPayService, accounts[60], accounts[61])
+                    .should.be.rejectedWith('revert');
+                await ServiceDriver.removeAdmin(TandaPayService, accounts[60], admin)
+                    .should.be.fulfilled;
             });
             it('Only administrators can call createGroup()', async () => {
-    
+                await ServiceDriver.createGroup(TandaPayService, accounts[62], premium, accounts[62])
+                    .should.be.rejectedWith('revert');
+                Group = await ServiceDriver.createGroup(TandaPayService, accounts[62], premium, admin)
+                    .should.be.fulfilled;
             });
             it('Only administrators can call removeSecretary()', async () => {
-    
+                await ServiceDriver.removeSecretary(TandaPayService, Group, accounts[63])
+                    .should.be.rejectedWith('revert');
+                await ServiceDriver.removeSecretary(TandaPayService, Group, admin)
+                    .should.be.fulfilled;
             });
             it('Only administrators can call installSecretary()', async () => {
-
+                await ServiceDriver.installSecretary(TandaPayService, Group, accounts[64], accounts[64])
+                    .should.be.rejectedWith('revert');
+                await ServiceDriver.installSecretary(TandaPayService, Group, accounts[64], admin)
+                    .should.be.fulfilled;
             });
-            it('Only administrators can call remitGroup()', async () => {
+            /* it('Only administrators can call remitGroup()', async () => {
 
             });
             it('Only administrators can call loan()', async () => {
 
-            });
+            }); */
         });
         describe('Secretary RBA Check', async () => {
             it('Only secretary can call addPolicyholder()', async() => {
-
-            });
-            it('Only secretary can call removePolicyholder()', async() => {
-
+                secretary = accounts[2];
+                Group = await ServiceDriver.createGroup(TandaPayService, secretary, premium, admin);
+                await GroupDriver.addPolicyholder(Group, policyholders[0], subgroups[0], accounts[65])
+                    .should.be.rejectedWith('revert');
+                await GroupDriver.addPolicyholder(Group, policyholders[0], subgroups[0], secretary)
+                    .should.be.fulfilled;
             });
             it('Only secretary can call changeSubgroup()', async () => {
-
+                await GroupDriver.changeSubgroup(Group, policyholders[0], 2, accounts[73])
+                    .should.be.rejectedWith('revert');
+                await GroupDriver.changeSubgroup(Group, policyholders[0], 2, secretary)
+                    .should.be.fulfilled;
+            });
+            it('Only secretary can call removePolicyholder()', async() => {
+                await GroupDriver.removePolicyholder(Group, policyholders[0], accounts[72])
+                    .should.be.rejectedWith('revert');
+                await GroupDriver.removePolicyholder(Group, policyholders[0], secretary)
+                    .should.be.fulfilled;
             });
             it('Only secretary can call lock()', async () => {
-
+                console.log("ph arr length: ", policyholders.length);
+                await Simulator.allPHinGroup(Group, policyholders, subgroups, secretary);
+                let x = await Group.size();
+                console.log(Object.keys(x));
+                await GroupDriver.lock(Group, accounts[71])
+                    .should.be.rejectedWith('revert');
+                await GroupDriver.lock(Group, secretary)
+                    .should.be.fulfilled;   
             });
             it('Only secretary can call rejectClaim()', async () => {
 
@@ -75,9 +113,16 @@ contract("TandaPayService", async (accounts) => {
             });
         });
         describe('Policyholder RBA Check', async () => {
-            it('Only policyholder can call payPremium()', async () => {
-
-            });
+            /* it('Only policyholder can call payPremium()', async () => {
+                await GroupDriver.addPolicyholder(Group, policyholders[0], subgroups[0], secretary)
+                    .should.be.fulfilled;
+                await DaiDriver.giveDai(Dai, policyholders[0], 20, admin);
+                await DaiDriver.giveDai(Dai, accounts[71], 20, admin);
+                await GroupDriver.payPremium(Group, accounts[71])
+                    .should.be.rejectedWith('revert');
+                await GroupDriver.payPremium(Group, policyholders[0])
+                    .should.be.fulfilled;
+            }); */
             it('Only ACTIVE policyholder can call openClaim()', async () => {
 
             });
@@ -159,13 +204,13 @@ contract("TandaPayService", async (accounts) => {
 
                 });
                 it('Cannot createGroup() with address that is already secretary', async () => {
-
+                    
                 });
                 it('Cannot createGroup() if premium is < 5', async () => {
-
+                    
                 });
                 it('Cannot createGroup() if premium > 50', async () => {
-
+                    
                 });
             });
             describe('removeSecretary() Functionality Check', async () => {
@@ -208,7 +253,7 @@ contract("TandaPayService", async (accounts) => {
                 });
                 describe('Remit Scenario: Three Toxic Subgroups, Five Claims (Three Valid)', async () => {
 
-                } );
+                });
             });
             describe('loan() Functionality Check', async () => {
 
@@ -246,8 +291,9 @@ contract("TandaPayService", async (accounts) => {
     });
     describe('Gas Fees <= 1,000,000 per TX Checks', async () => {
         describe('TandaPayService Gas Fee Checks', async () => {
+            
             it('addAdmin() <= 1,000,000 gas', async () => {
-
+                
             });
             it('removeAdmin() <= 1,000,000 gas', async () => {
 

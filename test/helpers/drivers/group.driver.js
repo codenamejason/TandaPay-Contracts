@@ -1,6 +1,6 @@
 /**
  * @author blOX Consulting LLC
- * @date 06.20.19
+ * @date 06.25.19
  * Groups.sol Smart Contract Driver
  */
 
@@ -24,20 +24,16 @@ module.exports = {
         return await _group.premium();
     },
 
-     /**
+    /**
      * Add a single policyholder to the Tanda Group
      * @param _group truffe-contract object of Group contract
      * @param _policyholder the web3 account object of the Policyholder being added
      * @param _subgroup the uint subgroup id to assign to the Policyholder
      * @param _secretary the web3 account object of the Secretary of _group
-     * @return the signed transaction object created by truffle
+     * @return the truffle-contract transaction object from the blockchain
      */
     addPolicyholder: async (_group, _policyholder, _subgroup, _secretary) => {
-        let tx = await _group.addPolicyholder(_policyholder.address, _subgroup, { from: _secretary });
-        //console.log("TX", tx);
-        //let receipt = await web3.eth.sendSignedTransaction(signed);
-        //console.log(receipt);
-        
+        return await _group.addPolicyholder(_policyholder, _subgroup, { from: _secretary });
     },
 
     /**
@@ -47,7 +43,7 @@ module.exports = {
      * @param _secretary account permitted to call removePolicyholder
      */
     removePolicyholder: async (_group, _policyholder, _secretary) => {
-
+        return await _group.removePolicyholder(_policyholder, {from: _secretary});
     },
 
     /**
@@ -58,7 +54,7 @@ module.exports = {
      * @param _secretary account permitted to call changeSubgroup
      */
     changeSubgroup: async (_group, _policyholder, _subgroup, _secretary) => {
-
+        return await _group.changeSubgroup(_policyholder, _subgroup, {from: _secretary});
     },
 
     /**
@@ -67,7 +63,7 @@ module.exports = {
      * @param _secretary account permitted to call lock
      */
     lock: async (_group, _secretary) => {
-
+        return await _group.lock({from: _secretary});
     },
 
     /**
@@ -76,7 +72,7 @@ module.exports = {
      * @param _policyholder account permitted to call payPremium
      */
     payPremium: async (_group, _policyholder) => {
-
+        return await _group.payPremium({from: _policyholder})
     },
 
     /**

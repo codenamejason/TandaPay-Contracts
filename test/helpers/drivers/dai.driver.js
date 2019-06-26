@@ -7,12 +7,11 @@ const DaiContract = artifacts.require('./DaiContract');
 module.exports = {
     
     /**
-     * Create a new Dai Contract
+     * Return the Dai Contract deployed in migrations
      * @return the truffle-contract object of the Dai Contract
      */
-    makeDaiContract: async () => {
-        let dai = await DaiContract.new();
-        return dai;
+    deploy: async () => {
+        return await DaiContract.deployed();
     },
 
     /**

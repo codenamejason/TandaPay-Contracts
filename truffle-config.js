@@ -10,7 +10,7 @@ module.exports = {
 
   networks: {
     development: {
-      provider: () => { return new HDWalletProvider(process.env.MNEMONIC, "http://127.0.0.1:8545", 0, 60) },
+      provider: () => { return new HDWalletProvider(process.env.MNEMONIC, "http://127.0.0.1:8545", 0, 80) },
       network_id: "*",
       gasLimit: 7000000
     },
