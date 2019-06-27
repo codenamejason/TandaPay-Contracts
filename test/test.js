@@ -104,33 +104,23 @@ contract("TandaPayService", async (accounts) => {
                 await GroupDriver.lock(Group, secretary)
                     .should.be.fulfilled;
             });
-            /* it('Only secretary can call rejectClaim()', async () => {
-
+            it('Only secretary can call rejectClaim()', async () => {
+                
             });
             it('Only secretary can call approveClaim()', async () => {
 
-            }); */
+            });
         });
         describe('Policyholder RBA Check', async () => {
             before(async () => {
                 let _premium = (await GroupDriver.getPremium(Group)).toString();
-                console.log("premium: ", _premium);
-                console.log("Bal PH: ", (await Dai.balanceOf(policyholders[0])).toString());
-                console.log("Bal Group: ", (await Dai.balanceOf(Group.address)).toString());
-                console.log("Allow Contract: ", (await Dai.allowance(policyholders[0], Group.address)).toNumber());
                 await Dai.approve(Group.address, _premium, {from: policyholders[0]});
-                console.log("Bal PH: ", (await Dai.balanceOf(policyholders[0])).toString());
-                console.log("Bal Group: ", (await Dai.balanceOf(Group.address)).toString());
-                console.log("Allow Contract: ", (await Dai.allowance(policyholders[0], Group.address)).toNumber());
             });
             it('Only policyholder can call payPremium()', async () => {
                 await GroupDriver.payPremium(Group, accounts[69])
                     .should.be.rejectedWith('revert');
                 await GroupDriver.payPremium(Group, policyholders[0])
                     .should.be.fulfilled;
-                console.log("Bal PH: ", (await Dai.balanceOf(policyholders[0])).toString());
-                console.log("Bal Group: ", (await Dai.balanceOf(Group.address)).toString());
-                console.log("Allow Contract: ", (await Dai.allowance(policyholders[0], Group.address)).toNumber());
             });
             it('Only ACTIVE policyholder can call openClaim()', async () => {
                 await Simulator.passDays(3);
@@ -140,7 +130,11 @@ contract("TandaPayService", async (accounts) => {
                     .should.be.fulfilled;
             });
             it('Only ACTIVE policyholder can call defect()', async() => {
-
+                await Simulator.passDays(24);
+                await GroupDriver.defect(Group, accounts[71])
+                    .should.be.rejectedWith('revert');
+                await GroupDriver.defect(Group, policyholders[0])
+                    .should.be.fulfilled;
             });
         });
     });

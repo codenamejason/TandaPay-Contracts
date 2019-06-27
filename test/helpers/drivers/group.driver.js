@@ -110,7 +110,7 @@ module.exports = {
      * @param _policyholder account permitted to call defect
      */
     defect: async (_group, _policyholder) => {
-
+        return await _group.defect({from: _policyholder});
     },
 
     /**

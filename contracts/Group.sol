@@ -224,4 +224,19 @@ contract Group is IGroup {
     function getSubgroupCount(uint8 _subgroup) public view returns (uint) {
         return subgroupCounts[_subgroup].current();
     }
+
+    function isActive(address _query) public view returns (bool) {
+        return (participantToIndex[_query] != 0);
+    }
+
+    function isPH(address _query) public view returns (bool) {
+        return (policyholders[_query] != 0);
+    }
+
+    function getLocks() public view returns (uint pre, uint active, uint post, uint unlockPeriod) {
+        pre = locks[0];
+        active = locks[1];
+        post = locks[2];
+        unlockPeriod = locks[3];
+    }
 }
