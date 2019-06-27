@@ -4,7 +4,7 @@
  * Main script for test suite simulation
  */
 
-const { GroupDaiDriver } = require("./driver.js");
+const { GroupDriver } = require("./driver.js");
 const time = require("./time")
 
  module.exports = {
@@ -55,7 +55,7 @@ const time = require("./time")
      * @param _minter address permitted to mint from the Dai contract
      */
     mintPolicyholders: async (Dai, _accounts, _minter) => {
-        let quantity = web3.utils.toBN(100);
+        let quantity = web3.utils.toBN(300);
         for(let i = 0; i < _accounts.length; i++) 
             await Dai.mint(_accounts[i], quantity, {from: _minter});
     },
@@ -68,8 +68,8 @@ const time = require("./time")
      * @param _secretary address permitted to add Policyholders in the Group contract
      */
     allPHinGroup: async (_group, _accounts, _subgroups, _secretary) => {
-        for(let i = 0; i < _accounts; i++)
-            await GroupDriver.addPolicyholder(_group, _accounts[i], _subgroups, _secretary);
+        for(let i = 0; i < _accounts.length; i++)
+            await GroupDriver.addPolicyholder(_group, _accounts[i], _subgroups[i], _secretary);
     },
 
     /**

@@ -23,6 +23,7 @@ contract Group is IGroup {
         
         policyholders[_to] = _subgroup;
         subgroupCounts[_subgroup].increment();
+        groupSize.increment();
         emit PolicyholderAdded(_to);
     }
     
@@ -31,6 +32,7 @@ contract Group is IGroup {
         
         subgroupCounts[policyholders[_from]].decrement();
         policyholders[_from] = 0;
+        groupSize.decrement();
         emit PolicyholderRemoved(_from);
     }
     
@@ -42,10 +44,6 @@ contract Group is IGroup {
         uint8 old = policyholders[_policyholder];
         policyholders[_policyholder] = _subgroup;
         emit SubgroupChange(_policyholder, old);
-    }
-
-    function size() public returns (uint) {
-        return groupSize.current();
     }
     
     function lock() public isSecretary() unlocked {
@@ -60,13 +58,13 @@ contract Group is IGroup {
     
     function payPremium() public isPolicyholder() correctPeriod(periodState.PRE) {
         uint8 overpayment = uint8(premium / subgroupCounts[policyholders[msg.sender]].current());
-        require(Dai.balanceOf(msg.sender) >= premium + overpayment, "Insufficient Dai balance for Tanda Insurance!");
+        //require(Dai.balanceOf(msg.sender) >= premium + overpayment, "Insufficient Dai balance for Tanda Insurance!");
         
         Dai.approve(address(this), premium + overpayment);
-        Dai.transferFrom(msg.sender, address(this), premium + overpayment);
-        participantIndex.increment();
-        activeParticipants[uint8(participantIndex.current())] = msg.sender;
-        participantToIndex[msg.sender] = uint8(participantIndex.current());
+        //Dai.transferFrom(msg.sender, address(this), premium + overpayment);
+        //participantIndex.increment();
+        /* activeParticipants[uint8(participantIndex.current())] = msg.sender;
+        participantToIndex[msg.sender] = uint8(participantIndex.current()); */
         emit PremiumPaid(msg.sender);
     }
     
@@ -211,5 +209,20 @@ contract Group is IGroup {
 
     function isLoaned() public view returns (bool) {
         return (loan.deficit > 0);
+    }
+
+    ///DEV///
+
+    function size() public view returns (uint) {
+        return groupSize.current();
+    }
+
+    function getPremium() public view returns (uint) {
+        uint8 overpayment = uint8(premium / subgroupCounts[policyholders[msg.sender]].current());
+        return (premium + overpayment);
+    }
+
+    function getSubgroupCount(uint8 _subgroup) public view returns (uint) {
+        return subgroupCounts[_subgroup].current();
     }
 }

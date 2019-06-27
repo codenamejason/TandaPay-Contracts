@@ -32,6 +32,6 @@ module.exports = {
      * @return Dai token balance of the account, as a BN object
      */
     getDaiBalance: async (_dai, _account) => {
-        return await _dai.balanceOf(_accounts[i]);
+        return await _dai.balanceOf(_account);
     }
 }
