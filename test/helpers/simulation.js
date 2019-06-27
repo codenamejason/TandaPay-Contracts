@@ -42,7 +42,7 @@ const time = require("./time")
      * @param _accounts all web3 accounts
      **/
     dust: async (_accounts) => {
-        let quantity = web3.utils.toWei('0.025', 'ether');
+        let quantity = web3.utils.toWei('1', 'ether');
         for(let i = 2; i < _accounts.length; i++)
             await web3.eth.sendTransaction({from: _accounts[1], to: _accounts[i], value: quantity});
     },

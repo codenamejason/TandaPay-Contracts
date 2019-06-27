@@ -36,9 +36,6 @@ contract("TandaPayService", async (accounts) => {
 
     describe('Role-based Authentication Checks', async () => {
         describe('Admin RBA Check', async() => {
-            before(async () => {
-                Group = await ServiceDriver.createGroup(TandaPayService, accounts[2], premium, admin);
-            });
             it('Only administrators can call addAdmin()', async () => {
                 await ServiceDriver.addAdmin(TandaPayService, accounts[60], accounts[60])
                     .should.be.rejectedWith('revert');
@@ -54,7 +51,7 @@ contract("TandaPayService", async (accounts) => {
             it('Only administrators can call createGroup()', async () => {
                 await ServiceDriver.createGroup(TandaPayService, accounts[62], premium, accounts[62])
                     .should.be.rejectedWith('revert');
-                await ServiceDriver.createGroup(TandaPayService, accounts[62], premium, admin)
+                Group = await ServiceDriver.createGroup(TandaPayService, accounts[62], premium, admin)
                     .should.be.fulfilled;
             });
             it('Only administrators can call removeSecretary()', async () => {
@@ -64,12 +61,12 @@ contract("TandaPayService", async (accounts) => {
                     .should.be.fulfilled;
             });
             it('Only administrators can call installSecretary()', async () => {
-                await ServiceDriver.installSecretary(TandaPayService, Group, accounts[64], accounts[64])
+                await ServiceDriver.installSecretary(TandaPayService, Group, accounts[62], accounts[64])
                     .should.be.rejectedWith('revert');
-                await ServiceDriver.installSecretary(TandaPayService, Group, accounts[2], admin)
+                await ServiceDriver.installSecretary(TandaPayService, Group, accounts[62], admin)
                     .should.be.fulfilled;
             });
-            /* it('Only administrators can call remitGroup()', async () => {
+            /*  it('Only administrators can call remitGroup()', async () => {
 
             });
             it('Only administrators can call loan()', async () => {
@@ -77,12 +74,12 @@ contract("TandaPayService", async (accounts) => {
             }); */
         });
         describe('Secretary RBA Check', async () => {
-            /* before(async () => {
+            before(async () => {
                 secretary = accounts[3];
                 Group = await ServiceDriver.createGroup(TandaPayService, secretary, premium, admin);
                 await Simulator.allPHinGroup(Group, policyholders, subgroups, secretary);
-            });
 
+            });
             it('Only secretary can call addPolicyholder()', async() => {
                 await GroupDriver.addPolicyholder(Group, accounts[65], 8, accounts[65])
                     .should.be.rejectedWith('revert');  
@@ -105,9 +102,9 @@ contract("TandaPayService", async (accounts) => {
                 await GroupDriver.lock(Group, accounts[68])
                     .should.be.rejectedWith('revert');
                 await GroupDriver.lock(Group, secretary)
-                    .should.be.fulfilled;   
+                    .should.be.fulfilled;
             });
-            it('Only secretary can call rejectClaim()', async () => {
+            /* it('Only secretary can call rejectClaim()', async () => {
 
             });
             it('Only secretary can call approveClaim()', async () => {
@@ -115,25 +112,14 @@ contract("TandaPayService", async (accounts) => {
             }); */
         });
         describe('Policyholder RBA Check', async () => {
-            before(async () => {
-                console.log("balance: ", (await DaiDriver.getDaiBalance(Dai, policyholders[0])).toString());
-                console.log("premium:", (await Group.getPremium()).toString());
-                console.log("subgroup count: ", (await Group.getSubgroupCount(0)).toString());
-            })
+            /* before(async () => {
+            }) */
             it('Only policyholder can call payPremium()', async () => {
-               /*  await DaiDriver.giveDai(Dai, accounts[69], 100, admin);
                 await GroupDriver.payPremium(Group, accounts[69])
                     .should.be.rejectedWith('revert');
-                console.log('flag0', policyholders[0]);
                 await GroupDriver.payPremium(Group, policyholders[0])
                     .should.be.fulfilled;
-                console.log("user balance: ", (await DaiDriver.getDaiBalance(Dai, policyholders[0])).toString());
-                console.log("Contract allowance: ", (await Dai.allowance(policyholders[0], Group.address)).toString());
-                console.log("Contract balance: ", (await Dai.balanceOf(Group.address)).toString());
                 await Dai.approve(Group.address, web3.utils.toBN(100), {from: policyholders[0]});
-                console.log("user balance: ", (await DaiDriver.getDaiBalance(Dai, policyholders[0])).toString());
-                console.log("Contract allowance: ", (await Dai.allowance(policyholders[0], Group.address)).toString());
-                console.log("Contract balance: ", (await Dai.balanceOf(Group.address)).toString()); */
             });
             it('Only ACTIVE policyholder can call openClaim()', async () => {
 
