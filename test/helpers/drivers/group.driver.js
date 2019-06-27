@@ -21,7 +21,7 @@ module.exports = {
      * @return the value of premium, as a BN object
      */
     getPremium: async (_group) => {
-        return await _group.premium();
+        return await _group.getPremium();
     },
 
     /**
@@ -81,7 +81,7 @@ module.exports = {
      * @param _policyholder account permitted to call openClaim
      */
     openClaim: async (_group, _policyholder) => {
-
+        return await _group.openClaim({from: _policyholder});
     },
 
     /**

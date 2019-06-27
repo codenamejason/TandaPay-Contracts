@@ -58,13 +58,12 @@ contract Group is IGroup {
     
     function payPremium() public isPolicyholder() correctPeriod(periodState.PRE) {
         uint8 overpayment = uint8(premium / subgroupCounts[policyholders[msg.sender]].current());
-        //require(Dai.balanceOf(msg.sender) >= premium + overpayment, "Insufficient Dai balance for Tanda Insurance!");
-        
-        Dai.approve(address(this), premium + overpayment);
-        //Dai.transferFrom(msg.sender, address(this), premium + overpayment);
-        //participantIndex.increment();
-        /* activeParticipants[uint8(participantIndex.current())] = msg.sender;
-        participantToIndex[msg.sender] = uint8(participantIndex.current()); */
+        uint8 total = premium + overpayment;
+        require(Dai.allowance(msg.sender, address(this)) >= total, "Insufficient Dai allowance for Tanda Insurance!");
+        Dai.transferFrom(msg.sender, address(this), total);
+        participantIndex.increment();
+        activeParticipants[uint8(participantIndex.current())] = msg.sender;
+        participantToIndex[msg.sender] = uint8(participantIndex.current());
         emit PremiumPaid(msg.sender);
     }
     

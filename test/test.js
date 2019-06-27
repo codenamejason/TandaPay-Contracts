@@ -26,7 +26,7 @@ contract("TandaPayService", async (accounts) => {
         Dai = await DaiDriver.deploy();
         TandaPayService = await ServiceDriver.deploy();
         await Simulator.dust(accounts);
-        //await Simulator.mintPolicyholders(Dai, policyholders, admin);
+        await Simulator.mintPolicyholders(Dai, policyholders, admin);
         /* let before = (await web3.eth.getBlock('latest')).timestamp;
         console.log("before timestamp: ", before);
         await Simulator.passTime(3);
@@ -112,17 +112,32 @@ contract("TandaPayService", async (accounts) => {
             }); */
         });
         describe('Policyholder RBA Check', async () => {
-            /* before(async () => {
-            }) */
+            before(async () => {
+                let _premium = (await GroupDriver.getPremium(Group)).toString();
+                console.log("premium: ", _premium);
+                console.log("Bal PH: ", (await Dai.balanceOf(policyholders[0])).toString());
+                console.log("Bal Group: ", (await Dai.balanceOf(Group.address)).toString());
+                console.log("Allow Contract: ", (await Dai.allowance(policyholders[0], Group.address)).toNumber());
+                await Dai.approve(Group.address, _premium, {from: policyholders[0]});
+                console.log("Bal PH: ", (await Dai.balanceOf(policyholders[0])).toString());
+                console.log("Bal Group: ", (await Dai.balanceOf(Group.address)).toString());
+                console.log("Allow Contract: ", (await Dai.allowance(policyholders[0], Group.address)).toNumber());
+            });
             it('Only policyholder can call payPremium()', async () => {
                 await GroupDriver.payPremium(Group, accounts[69])
                     .should.be.rejectedWith('revert');
                 await GroupDriver.payPremium(Group, policyholders[0])
                     .should.be.fulfilled;
-                await Dai.approve(Group.address, web3.utils.toBN(100), {from: policyholders[0]});
+                console.log("Bal PH: ", (await Dai.balanceOf(policyholders[0])).toString());
+                console.log("Bal Group: ", (await Dai.balanceOf(Group.address)).toString());
+                console.log("Allow Contract: ", (await Dai.allowance(policyholders[0], Group.address)).toNumber());
             });
             it('Only ACTIVE policyholder can call openClaim()', async () => {
-
+                await Simulator.passDays(3);
+                await GroupDriver.openClaim(Group, accounts[70])
+                    .should.be.rejectedWith('revert');
+                await GroupDriver.openClaim(Group, policyholders[0])
+                    .should.be.fulfilled;
             });
             it('Only ACTIVE policyholder can call defect()', async() => {
 
