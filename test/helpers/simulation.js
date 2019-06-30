@@ -31,7 +31,7 @@ const time = require("./time")
     makeSubgroups: () => {
         let subgroups = [];
         for(let i = 0; i < 50; i++) 
-            subgroups.push(Math.floor(i/7));
+            subgroups.push(Math.floor(i/5));
         let shuffled_subgroups = module.exports.fisherYatesShuffle(subgroups);
         return shuffled_subgroups;         
     },
@@ -70,6 +70,17 @@ const time = require("./time")
     allPHinGroup: async (_group, _accounts, _subgroups, _secretary) => {
         for(let i = 0; i < _accounts.length; i++)
             await GroupDriver.addPolicyholder(_group, _accounts[i], _subgroups[i], _secretary);
+    },
+
+    /**
+     * Pay premium in Tanda Group for every address in _accounts as Policyholder
+     * @param _group truffle-contract object of Group contract
+     * @param _dai truffle-contract object of Dai contract
+     * @param _accounts array of addresses to pay Premium to Group contract as Policyholder
+     */
+    payPremiumAll: async (_group, _dai, _accounts) => {
+        for(let i = 0; i < _accounts.length; i++)
+            await GroupDriver.payPremium(_group, _dai, _accounts[i]);
     },
 
     /**

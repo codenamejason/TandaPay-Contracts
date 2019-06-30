@@ -69,10 +69,13 @@ module.exports = {
     /**
      * Pay a premium in a given Group as a policyholder
      * @param _group truffle-contract object of Group
+     * @param _dai truffle-contract object of Dai
      * @param _policyholder account permitted to call payPremium
      */
-    payPremium: async (_group, _policyholder) => {
-        return await _group.payPremium({from: _policyholder})
+    payPremium: async (_group, _dai, _policyholder) => {
+        let premium = await _group.getPremium();
+        await _dai.approve(_group.address, premium, {from: _policyholder});
+        return await _group.payPremium({from: _policyholder});
     },
 
     /**

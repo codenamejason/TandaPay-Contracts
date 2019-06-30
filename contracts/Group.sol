@@ -75,6 +75,7 @@ contract Group is IGroup {
         uint8 index = uint8(period.claimIndex.current());
         period.claims[index].policyholder = msg.sender;
         period.claims[index].state = claimState.OPEN;
+        period.openedClaim[msg.sender] = index;
         emit ClaimOpened(msg.sender);
     }
 
@@ -148,18 +149,21 @@ contract Group is IGroup {
             }
         }
     }
-    //
+
     function payClaims() internal {
         Period storage period = periods[uint16(periodIndex.current())];
-        uint8 maxPayout = premium * 25;
         uint8 claimIndex = uint8(period.claimIndex.current());
-        uint8 share = uint8(Dai.balanceOf(address(this))) / claimIndex;
-        if(share > maxPayout)
-            share = maxPayout;
-        for(uint8 i = 0; i < claimIndex; i++) {
-            address claimant = period.claims[i].policyholder;
-            Dai.transfer(claimant, share);
-            removeParticipant(claimant);
+        if(claimIndex > 0) {
+            uint8 maxPayout = premium * 25;
+            uint8 claimIndex = uint8(period.claimIndex.current());
+            uint8 share = uint8(Dai.balanceOf(address(this))) / claimIndex; // this will throw with 0 claims
+            if(share > maxPayout)
+                share = maxPayout;
+            for(uint8 i = 0; i < claimIndex; i++) {
+                address claimant = period.claims[i].policyholder;
+                Dai.transfer(claimant, share);
+                removeParticipant(claimant);
+            }
         }
     }
     
@@ -238,5 +242,36 @@ contract Group is IGroup {
         active = locks[1];
         post = locks[2];
         unlockPeriod = locks[3];
+    }
+
+    function getPeriodIndex() public view returns (uint index) {
+        index = periodIndex.current();
+    }
+
+    function getClaim(uint8 index) public view returns (address claimant, uint state) {
+        Period storage period = periods[uint16(periodIndex.current())];
+        Claim memory claim = period.claims[index];
+        claimant = claim.policyholder;
+        state = uint(claim.state);
+    }
+
+    function getClaimIndex() public view returns (uint index) {
+        Period storage period = periods[uint16(periodIndex.current())];
+        index = period.claimIndex.current();
+    }
+
+    function addressToClaim(address _query) public view returns (uint index) {
+        Period storage period = periods[uint16(periodIndex.current())];
+        index = period.openedClaim[_query];
+    }
+
+    function getPayout() public view returns (uint payout) {
+        uint index = getClaimIndex();
+        uint maxPayout = premium * 25;
+        if(index == 0)
+            index++; // dont divide by 0, @dev hacky
+        payout = Dai.balanceOf(address(this)) / index;
+        if(payout > maxPayout)
+            payout = maxPayout;
     }
 }

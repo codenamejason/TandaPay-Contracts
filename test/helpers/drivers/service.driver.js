@@ -84,4 +84,49 @@ module.exports = {
     remitGroup: async(_group, _admin) => {
     },
 
+    /**
+     * Estimate the gas used in an addAdmin transaction
+     * @param _service truffle-contract object of TandaPayService
+     * @param _account address being added as administrator
+     * @param _admin address permitted to call addAdmin 
+     * @return Gas estimate of transaction as a string
+     */
+    gasAddAdmin: async(_service, _account, _admin) => {
+        return await _service.addAdmin.estimateGas(_account, {from: _admin});
+    },
+
+    /**
+     * Estimate the gas used in an removeAdmin transaction
+     * @param _service truffle-contract object of TandaPayService
+     * @param _account address being removed from administrator
+     * @param _admin address permitted to call removeAdmin 
+     * @return Gas estimate of transaction as a string
+     */
+    gasRemoveAdmin: async(_service, _account, _admin) => {
+        return await _service.removeAdmin.estimateGas(_account, {from: _admin});
+    },
+
+    /**
+     * Estimate the gas used in an removeSecretary transaction
+     * @param _service truffle-contract object of TandaPayService
+     * @param _group truffle-contract object of Group
+     * @param _admin address permitted to call removeSecretary
+     * @return Gas estimate of transaction as a string
+     */
+    gasRemoveSecretary: async(_service, _group, _admin) => {
+        return await _service.removeSecretary.estimateGas(_group.address, {from: _admin});
+    },
+
+    /**
+     * Estimate the gas used in an installSecretary transaction
+     * @param _service truffle-contract object of TandaPayService
+     * @param _group truffle-contract object of Group
+     * @param _secretary address being installed in Group as Secretary
+     * @param _admin address permitted to call installSecretary
+     * @return Gas estimate of transaction as a string
+     */
+    gasInstallSecretary: async(_service, _group, _secretary, _admin) => {
+        return await _service.installSecretary.estimateGas(_group.address, _secretary, {from: _admin});
+    }
+
 }
