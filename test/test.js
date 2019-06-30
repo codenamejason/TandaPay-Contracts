@@ -134,13 +134,9 @@ contract("TandaPayService", async (accounts) => {
                 
             }); */
             it('big man test', async () => {
-                console.log('flaga');
-                let subgroupIndex = Math.floor(policyholders.length/5) + 3;
-                for(let i = 0; i < subgroupIndex; i++)
-                    console.log("subgroup " + i + " count: ", (await Group.getSubgroupCount(i)).toString());
-                for(let i = 0; i < policyholders.length; i++)
-                    console.log(i + ": " + policyholders[i] + ", subgroup: " + subgroups[i]);
                 await Simulator.payPremiumAll(Group, Dai, policyholders);
+                console.log("Claim index: ", (await Group.getClaimIndex()).toString());
+                console.log("Balance: ", (await Dai.balanceOf(Group.address)).toString());
                 console.log("Payout: ", (await Group.getPayout()).toString());
             });
         });

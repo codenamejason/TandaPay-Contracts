@@ -73,7 +73,7 @@ module.exports = {
      * @param _policyholder account permitted to call payPremium
      */
     payPremium: async (_group, _dai, _policyholder) => {
-        let premium = await _group.getPremium();
+        let premium = await _group.getPremium({from: _policyholder});
         await _dai.approve(_group.address, premium, {from: _policyholder});
         return await _group.payPremium({from: _policyholder});
     },

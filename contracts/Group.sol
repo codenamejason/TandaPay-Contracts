@@ -270,8 +270,8 @@ contract Group is IGroup {
         uint maxPayout = premium * 25;
         if(index == 0)
             index++; // dont divide by 0, @dev hacky
-        payout = Dai.balanceOf(address(this)) / index;
-        if(payout > maxPayout)
-            payout = maxPayout;
+        payout = Dai.balanceOf(address(this));
+        //if(payout > maxPayout)
+        //payout = premium * 25;
     }
 }

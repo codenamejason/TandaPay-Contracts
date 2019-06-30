@@ -31,7 +31,7 @@ const time = require("./time")
     makeSubgroups: () => {
         let subgroups = [];
         for(let i = 0; i < 50; i++) 
-            subgroups.push(Math.floor(i/5));
+            subgroups.push(Math.floor(i/5) + 1); // +1 because no 0 subgroup @dev hacky
         let shuffled_subgroups = module.exports.fisherYatesShuffle(subgroups);
         return shuffled_subgroups;         
     },
@@ -79,13 +79,16 @@ const time = require("./time")
      * @param _accounts array of addresses to pay Premium to Group contract as Policyholder
      */
     payPremiumAll: async (_group, _dai, _accounts) => {
-        for(let i = 0; i < _accounts.length; i++)
+        console.log("flag");
+        for(let i = 0; i < _accounts.length; i++) {
+            console.log("flag", i);
             await GroupDriver.payPremium(_group, _dai, _accounts[i]);
+        }
     },
 
     /**
      * Increase the time in the local EVM
-     * @dev TandaPay'ssignificant times are all days apart; this is a shorthand
+     * @dev TandaPay's significant times are all days apart; this is a shorthand
      * @param _days the number of days for the evm to pass
      */
     passDays: async (_days) => {
