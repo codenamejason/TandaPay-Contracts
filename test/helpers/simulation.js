@@ -79,7 +79,6 @@ const time = require("./time")
      * @param _accounts array of addresses to pay Premium to Group contract as Policyholder
      */
     payPremiumAll: async (_group, _dai, _accounts) => {
-        console.log("flag");
         for(let i = 0; i < _accounts.length; i++)
             await GroupDriver.payPremium(_group, _dai, _accounts[i]);
     },
@@ -111,5 +110,21 @@ const time = require("./time")
             arr[random] = temporary;
         }
         return arr;
+    },
+
+    /**
+     * Return an array of all addresses in subgroup id targetIndex
+     * @param _policyholders array of Ethereum addresses
+     * @param _subgroups array of integers for subgroup ID
+     * @param _targetIndex subgroup ID to query
+     * @return array of all addresses in _policyholders with subgroup ID in _subgroups of _targetIndex
+     */
+    getSubgroupMembers: async (_policyholders, _subgroups, _targetIndex) => {
+        let subgroup = [];
+        for(let i = 0; i < _policyholders.length; i++) {
+            if(_subgroups[i] == _targetIndex)
+                subgroup.push(_policyholders[i]);
+        }
+        return subgroup;
     }
 }

@@ -94,7 +94,7 @@ module.exports = {
      * @param _secretary account permitted to call rejectClaim
      */
     rejectClaim: async (_group, _claimant, _secretary) => {
-
+        return await _group.rejectClaim(_claimant, {from: _secretary});
     },
 
     /**
@@ -104,7 +104,7 @@ module.exports = {
      * @param _secretary account permitted to call approveClaim
      */
     approveClaim: async (_group, _claimant, _secretary) => {
-
+        return await _group.approveClaim(_claimant, {from: _secretary});
     },
 
     /**

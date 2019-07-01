@@ -134,9 +134,44 @@ contract("TandaPayService", async (accounts) => {
                 
             }); */
             it('big man test', async () => {
+
                 await Simulator.payPremiumAll(Group, Dai, policyholders);
+
                 console.log("Claim index: ", (await Group.getClaimIndex()).toString());
                 console.log("Balance: ", (await Dai.balanceOf(Group.address)).toString());
+                console.log("Payout: ", (await Group.getPayout()).toString());
+
+                await Simulator.passDays(3);
+
+                let goodSubgroup = await Simulator.getSubgroupMembers(policyholders, subgroups, 1);
+                let badSubgroup = await Simulator.getSubgroupMembers(policyholders, subgroups, 2);
+
+                for(let i = 0; i < 3; i++) {
+                    await GroupDriver.openClaim(Group, goodSubgroup[i]);
+                    await GroupDriver.openClaim(Group, badSubgroup[i]);
+                }
+
+                for(let i = 1; i <= 6; i ++) {
+                    let claim = await Group.getClaim(i);
+                    console.log("Claim #: " + i + "; Claimant: " + claim.claimant + "; State: " + claim.state.toString());
+                }
+
+                console.log("Claim Index: ", (await Group.getClaimIndex()).toString());
+                console.log("Payout: ", (await Group.getPayout()).toString());
+
+                await Simulator.passDays(24);
+
+                for(let i = 0; i < 2; i++) {
+                    await GroupDriver.approveClaim(Group, goodSubgroup[i], secretary);
+                    await GroupDriver.approveClaim(Group, badSubgroup[i], secretary);
+                }
+
+                await GroupDriver.rejectClaim(Group, goodSubgroup[2], secretary);
+                await GroupDriver.rejectClaim(Group, badSubgroup[2], secretary);
+                for(let i = 1; i <= 6; i ++) {
+                    let claim = await Group.getClaim(i);
+                    console.log("Claim #: " + i + "; Claimant: " + claim.claimant + "; State: " + claim.state.toString());
+                }
                 console.log("Payout: ", (await Group.getPayout()).toString());
             });
         });
