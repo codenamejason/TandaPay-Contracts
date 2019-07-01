@@ -128,7 +128,7 @@ contract Group is IGroup {
         emit Installed(secretary);
     }
     
-    function remittable() public view onlyPrimary returns (bool) {
+    function remittable() public view returns (bool) {
         uint timelock = locks[uint(periodState.POST)];
         return(timelock != 0 && timelock < now);
     }
@@ -157,16 +157,12 @@ contract Group is IGroup {
     function payClaims() internal {
         Period storage period = periods[uint16(periodIndex.current())];
         uint8 claimIndex = uint8(period.claimIndex.current());
-        if(claimIndex > 0) {
-            uint maxPayout = uint256(premium).mul(25);
-            uint share = Dai.balanceOf(address(this)).div(claimIndex); // this will throw with 0 claims
-            if(share > maxPayout)
-                share = maxPayout;
-            for(uint8 i = 0; i < claimIndex; i++) {
-                address claimant = period.claims[i].policyholder;
-                Dai.transfer(claimant, share);
-                removeParticipant(claimant);
-            }
+        uint payout = getPayout();
+        for(uint8 i = 1; i <= claimIndex; i++) {
+            address claimant = period.claims[i].policyholder;
+            require(claimant != address(0), "Whoops");
+            Dai.transfer(claimant, payout);
+            removeParticipant(claimant);
         }
     }
     
@@ -272,11 +268,15 @@ contract Group is IGroup {
 
     function getPayout() public view returns (uint payout) {
         uint index = getClaimIndex();
-        uint maxPayout = uint256(premium).mul(25);
         if(index == 0)
-            index.add(1); // dont divide by 0, @dev hacky
-        payout = Dai.balanceOf(address(this));
+            index = index.add(1); // dont divide by 0, @dev hacky
+        uint maxPayout = uint256(premium).mul(25);
+        payout = Dai.balanceOf(address(this)).div(index);
         if(payout > maxPayout)
             payout = maxPayout;
+    }
+
+    function getPeriod() public view returns (uint period) {
+        return periodIndex.current();
     }
 }

@@ -78,10 +78,12 @@ module.exports = {
 
     /**
      * Remit a given Group's insurance escrow
+     * @param _service truffle-contract object of TandaPayService
      * @param _group truffle-contract object of Group
-     * @param _admin the account permitted for CRON operations
+     * @param _admin the account permitted for CRON operations (remitting escrow)
      */
-    remitGroup: async(_group, _admin) => {
+    remitGroup: async(_service, _group, _admin) => {
+        return await _service.remitGroup(_group.address, {from: _admin});
     },
 
     /**

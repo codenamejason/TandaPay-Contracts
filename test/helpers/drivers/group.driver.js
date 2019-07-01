@@ -119,9 +119,10 @@ module.exports = {
     /**
      * Determine whether a Group contract's escrow is ready to remit
      * @param _group truffle-contract object of Group
+     * @param _admin administrator address permitted to call remittable
      * @return true if the timelock has expired, and false otherwise
      */
-    remittable: async(_group) => {
-
+    remittable: async(_group, _admin) => {
+        return await _group.remittable({from: _admin});
     }
 }

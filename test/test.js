@@ -168,11 +168,36 @@ contract("TandaPayService", async (accounts) => {
 
                 await GroupDriver.rejectClaim(Group, goodSubgroup[2], secretary);
                 await GroupDriver.rejectClaim(Group, badSubgroup[2], secretary);
+
                 for(let i = 1; i <= 6; i ++) {
                     let claim = await Group.getClaim(i);
                     console.log("Claim #: " + i + "; Claimant: " + claim.claimant + "; State: " + claim.state.toString());
                 }
+
+                for(let i = 4; i >= 2; i--) {
+                    await GroupDriver.defect(Group, badSubgroup[i]);
+                }
+
+                for(let i = 1; i <= 6; i ++) {
+                    let claim = await Group.getClaim(i);
+                    console.log("Claim #: " + i + "; Claimant: " + claim.claimant + "; State: " + claim.state.toString());
+                }
+
+                console.log("Claim Index: ", (await Group.getClaimIndex()).toString());
                 console.log("Payout: ", (await Group.getPayout()).toString());
+
+                console.log("Unlocked?: ", await GroupDriver.remittable(Group, admin));
+                await Simulator.passDays(3);
+                console.log("Unlocked?: ", await GroupDriver.remittable(Group, admin));
+                console.log("Period index: ", (await Group.getPeriod()).toString());
+                for(let i = 0; i < policyholders.length; i++)
+                    console.log("Dai balance of " + i + ": ", (await Dai.balanceOf(policyholders[i])).toNumber());
+                await ServiceDriver.remitGroup(TandaPayService, Group, admin);
+                console.log("Period index: ", (await Group.getPeriod()).toString());
+                console.log("Claim index: ", (await Group.getClaimIndex()).toString());
+                console.log("Balance: ", (await Dai.balanceOf(Group.address)).toString());
+                for(let i = 0; i < policyholders.length; i++)
+                    console.log("Dai balance of " + i + ": ", (await Dai.balanceOf(policyholders[i])).toNumber());
             });
         });
     });
