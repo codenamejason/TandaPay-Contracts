@@ -80,10 +80,8 @@ const time = require("./time")
      */
     payPremiumAll: async (_group, _dai, _accounts) => {
         console.log("flag");
-        for(let i = 0; i < _accounts.length; i++) {
-            console.log("flag", i);
+        for(let i = 0; i < _accounts.length; i++)
             await GroupDriver.payPremium(_group, _dai, _accounts[i]);
-        }
     },
 
     /**

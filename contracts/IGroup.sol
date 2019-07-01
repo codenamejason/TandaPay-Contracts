@@ -3,7 +3,7 @@ pragma solidity >= 0.4.0 < 0.7.0;
 import 'openzeppelin-solidity/contracts/ownership/Secondary.sol';
 import 'openzeppelin-solidity/contracts/token/ERC20/IERC20.sol';
 import 'openzeppelin-solidity/contracts/drafts/Counters.sol';
-
+import 'openzeppelin-solidity/contracts/math/SafeMath.sol';
 /**
  * @author blOX Consulting LLC.
  * Date: 06.20.2019
@@ -14,6 +14,7 @@ import 'openzeppelin-solidity/contracts/drafts/Counters.sol';
 contract IGroup is Secondary {
     
     using Counters for Counters.Counter;
+    using SafeMath for uint256;
     
     ///EVENTS///
     event PolicyholderAdded(address _policyholder);

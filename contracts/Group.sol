@@ -49,17 +49,21 @@ contract Group is IGroup {
     function lock() public isSecretary() unlocked {
         require(groupSize.current() >= 50, "Insufficient size to begin pre-period!");
         require(locks[uint(periodState.POST)] <= now, "Group is already in an escrow cycle!");
+
         locks[uint(periodState.LOBBY)] = now;
-        locks[uint(periodState.PRE)] = now + 3 days;
-        locks[uint(periodState.ACTIVE)] = now + 27 days;
-        locks[uint(periodState.POST)] = now + 30 days;
+        locks[uint(periodState.PRE)] = now.add(3 days);
+        locks[uint(periodState.ACTIVE)] = now.add(27 days);
+        locks[uint(periodState.POST)] = now.add(30 days);
         emit Locked();
     }
     
     function payPremium() public isPolicyholder() correctPeriod(periodState.PRE) {
-        uint8 overpayment = uint8(premium / subgroupCounts[policyholders[msg.sender]].current());
-        uint8 total = premium + overpayment;
+        require(participantToIndex[msg.sender] == 0, "Address has already paid premium as a Policyholder!");
+        uint subgroup = subgroupCounts[policyholders[msg.sender]].current();
+        uint overpayment = uint256(premium).div(subgroup);
+        uint total = uint256(premium).add(overpayment);
         require(Dai.allowance(msg.sender, address(this)) >= total, "Insufficient Dai allowance for Tanda Insurance!");
+
         Dai.transferFrom(msg.sender, address(this), total);
         participantIndex.increment();
         activeParticipants[uint8(participantIndex.current())] = msg.sender;
@@ -154,9 +158,8 @@ contract Group is IGroup {
         Period storage period = periods[uint16(periodIndex.current())];
         uint8 claimIndex = uint8(period.claimIndex.current());
         if(claimIndex > 0) {
-            uint8 maxPayout = premium * 25;
-            uint8 claimIndex = uint8(period.claimIndex.current());
-            uint8 share = uint8(Dai.balanceOf(address(this))) / claimIndex; // this will throw with 0 claims
+            uint maxPayout = uint256(premium).mul(25);
+            uint share = Dai.balanceOf(address(this)).div(claimIndex); // this will throw with 0 claims
             if(share > maxPayout)
                 share = maxPayout;
             for(uint8 i = 0; i < claimIndex; i++) {
@@ -170,7 +173,7 @@ contract Group is IGroup {
     function payRefunds() internal {
         if(Dai.balanceOf(address(this)) > 0) {
             uint8 participantsLength = uint8(participantIndex.current());
-            uint share = Dai.balanceOf(address(this)) / participantsLength;
+            uint share = Dai.balanceOf(address(this)).sub(participantsLength);
             for(uint8 i = 0; i < participantsLength; i++) {
                 address participant = activeParticipants[i];
                 Dai.transfer(participant, share);
@@ -187,8 +190,8 @@ contract Group is IGroup {
         period.claims[_index] = period.claims[claimIndex];
         address newClaimant = period.claims[claimIndex].policyholder;
         delete period.claims[claimIndex];
-        period.claimIndex.decrement();
         delete period.openedClaim[claimant];
+        period.claimIndex.decrement();
         period.openedClaim[newClaimant] = claimIndex;
     }
     
@@ -197,8 +200,8 @@ contract Group is IGroup {
         uint8 maxIndex = uint8(participantIndex.current());
         activeParticipants[index] = activeParticipants[maxIndex];
         delete activeParticipants[maxIndex];
-        participantToIndex[activeParticipants[index]] = index;
         delete participantToIndex[_participant];
+        participantToIndex[activeParticipants[index]] = index;
         participantIndex.decrement();
     }
     
@@ -220,9 +223,11 @@ contract Group is IGroup {
         return groupSize.current();
     }
 
-    function getPremium() public view returns (uint) {
-        uint8 overpayment = uint8(premium / subgroupCounts[policyholders[msg.sender]].current());
-        return (premium + overpayment);
+    function getPremium() public view returns (uint _premium) {
+        uint subgroup = subgroupCounts[policyholders[msg.sender]].current();
+        uint overpayment = uint256(premium).div(subgroup);
+        uint total = uint256(premium).add(overpayment);
+        _premium = total;
     }
 
     function getSubgroupCount(uint8 _subgroup) public view returns (uint) {
@@ -267,11 +272,11 @@ contract Group is IGroup {
 
     function getPayout() public view returns (uint payout) {
         uint index = getClaimIndex();
-        uint maxPayout = premium * 25;
+        uint maxPayout = uint256(premium).mul(25);
         if(index == 0)
-            index++; // dont divide by 0, @dev hacky
+            index.add(1); // dont divide by 0, @dev hacky
         payout = Dai.balanceOf(address(this));
-        //if(payout > maxPayout)
-        //payout = premium * 25;
+        if(payout > maxPayout)
+            payout = maxPayout;
     }
 }
