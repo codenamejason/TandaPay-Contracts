@@ -13,7 +13,7 @@ contract("TandaPayService", async (accounts) => {
     // account 1 = duster bank
     // account 2-9 = secretaries
     // account 10-59 = policyholders
-    // account 60-79 = revert dummies
+    // account 60-99 = revert dummies
     let Dai, TandaPayService, Group;
     let secretary;
     let admin = accounts[0];
@@ -25,6 +25,9 @@ contract("TandaPayService", async (accounts) => {
     before(async () => {
         Dai = await DaiDriver.deploy();
         TandaPayService = await ServiceDriver.deploy();
+        secretary = accounts[3];
+        Group = await ServiceDriver.createGroup(TandaPayService, secretary, premium, admin);
+        await Simulator.allPHinGroup(Group, policyholders, subgroups, secretary);
         await Simulator.dust(accounts);
         await Simulator.mintPolicyholders(Dai, policyholders, admin);
     });
@@ -46,7 +49,7 @@ contract("TandaPayService", async (accounts) => {
             it('Only administrators can call createGroup()', async () => {
                 await ServiceDriver.createGroup(TandaPayService, accounts[62], premium, accounts[62])
                     .should.be.rejectedWith('revert');
-                Group = await ServiceDriver.createGroup(TandaPayService, accounts[62], premium, admin)
+                await ServiceDriver.createGroup(TandaPayService, accounts[62], premium, admin)
                     .should.be.fulfilled;
             });
             it('Only administrators can call removeSecretary()', async () => {
@@ -56,152 +59,101 @@ contract("TandaPayService", async (accounts) => {
                     .should.be.fulfilled;
             });
             it('Only administrators can call installSecretary()', async () => {
-                await ServiceDriver.installSecretary(TandaPayService, Group, accounts[62], accounts[64])
+                await ServiceDriver.installSecretary(TandaPayService, Group, secretary, accounts[64])
                     .should.be.rejectedWith('revert');
-                await ServiceDriver.installSecretary(TandaPayService, Group, accounts[62], admin)
+                await ServiceDriver.installSecretary(TandaPayService, Group, secretary, admin)
                     .should.be.fulfilled;
             });
             it('Only administrators can call remitGroup()', async () => {
-
+                await GroupDriver.lock(Group, secretary);
+                await Simulator.passDays(30);
+                await ServiceDriver.remitGroup(TandaPayService, Group, accounts[65])
+                    .should.be.rejectedWith('revert');
+                await ServiceDriver.remitGroup(TandaPayService, Group, admin)
+                    .should.be.fulfilled;
             });
             it('Only administrators can call loan()', async () => {
-
+                //@dev todo
             });
         });
         describe('Secretary RBA Check', async () => {
-            before(async () => {
-                secretary = accounts[3];
-                Group = await ServiceDriver.createGroup(TandaPayService, secretary, premium, admin);
-                await Simulator.allPHinGroup(Group, policyholders, subgroups, secretary);
-
-            });
             it('Only secretary can call addPolicyholder()', async() => {
-                await GroupDriver.addPolicyholder(Group, accounts[65], 8, accounts[65])
+                await GroupDriver.addPolicyholder(Group, accounts[66], 8, accounts[66])
                     .should.be.rejectedWith('revert');  
-                await GroupDriver.addPolicyholder(Group, accounts[65], 8, secretary)
+                await GroupDriver.addPolicyholder(Group, accounts[66], 8, secretary)
                     .should.be.fulfilled;
             });
             it('Only secretary can call changeSubgroup()', async () => {
-                await GroupDriver.changeSubgroup(Group, accounts[65], 9, accounts[66])
+                await GroupDriver.changeSubgroup(Group, accounts[66], 9, accounts[67])
                     .should.be.rejectedWith('revert');
-                await GroupDriver.changeSubgroup(Group, accounts[65], 9, secretary)
+                await GroupDriver.changeSubgroup(Group, accounts[66], 9, secretary)
                     .should.be.fulfilled;
             });
             it('Only secretary can call removePolicyholder()', async() => {
-                await GroupDriver.removePolicyholder(Group, accounts[65], accounts[67])
+                await GroupDriver.removePolicyholder(Group, accounts[66], accounts[68])
                     .should.be.rejectedWith('revert');
-                await GroupDriver.removePolicyholder(Group, accounts[65], secretary)
+                await GroupDriver.removePolicyholder(Group, accounts[66], secretary)
                     .should.be.fulfilled;
             });
             it('Only secretary can call lock()', async () => {
-                await GroupDriver.lock(Group, accounts[68])
+                await GroupDriver.lock(Group, accounts[69])
                     .should.be.rejectedWith('revert');
                 await GroupDriver.lock(Group, secretary)
                     .should.be.fulfilled;
             });
             it('Only secretary can call rejectClaim()', async () => {
-                //await Simulator.passDays(3);
+                await GroupDriver.payPremium(Group, Dai, policyholders[0]);
+                await GroupDriver.payPremium(Group, Dai, policyholders[1]);
+                await Simulator.passDays(3);
+                await GroupDriver.openClaim(Group, policyholders[0]);
+                await GroupDriver.openClaim(Group, policyholders[1]);
+                await Simulator.passDays(24);
+                await GroupDriver.rejectClaim(Group, policyholders[0], accounts[70])
+                    .should.be.rejectedWith('revert');
+                await GroupDriver.rejectClaim(Group, policyholders[0], secretary)
+                    .should.be.fulfilled;
             });
             it('Only secretary can call approveClaim()', async () => {
-
+                await GroupDriver.approveClaim(Group, policyholders[1], accounts[71])
+                    .should.be.rejectedWith('revert');
+                await GroupDriver.approveClaim(Group, policyholders[1], secretary)
+                    .should.be.fulfilled;
             });
         });
         describe('Policyholder RBA Check', async () => {
-            /* before(async () => {
-                let _premium = (await GroupDriver.getPremium(Group)).toString();
-                await Dai.approve(Group.address, _premium, {from: policyholders[0]});
+            before(async () => {
+                await Simulator.passDays(3);
+                await ServiceDriver.remitGroup(TandaPayService, Group, admin);
+                await GroupDriver.lock(Group, secretary);
             });
             it('Only policyholder can call payPremium()', async () => {
-                await GroupDriver.payPremium(Group, accounts[69])
+                await GroupDriver.payPremium(Group, Dai, accounts[71])
                     .should.be.rejectedWith('revert');
-                await GroupDriver.payPremium(Group, policyholders[0])
+                await GroupDriver.payPremium(Group, Dai, policyholders[0])
                     .should.be.fulfilled;
             });
             it('Only ACTIVE policyholder can call openClaim()', async () => {
                 await Simulator.passDays(3);
-                await GroupDriver.openClaim(Group, accounts[70])
+                await GroupDriver.openClaim(Group, accounts[72])
                     .should.be.rejectedWith('revert');
                 await GroupDriver.openClaim(Group, policyholders[0])
                     .should.be.fulfilled;
-                console.log("payout1", (await Group.getPayout()).toNumber());
             });
             it('Only ACTIVE policyholder can call defect()', async() => {
                 await Simulator.passDays(24);
-                await GroupDriver.defect(Group, accounts[71])
+                await GroupDriver.defect(Group, accounts[73])
                     .should.be.rejectedWith('revert');
                 await GroupDriver.defect(Group, policyholders[0])
                     .should.be.fulfilled;
-                
-            }); */
-            it('big man test', async () => {
-
-                await Simulator.payPremiumAll(Group, Dai, policyholders);
-
-                console.log("Claim index: ", (await Group.getClaimIndex()).toString());
-                console.log("Balance: ", (await Dai.balanceOf(Group.address)).toString());
-                console.log("Payout: ", (await Group.getPayout()).toString());
-
-                await Simulator.passDays(3);
-
-                let goodSubgroup = await Simulator.getSubgroupMembers(policyholders, subgroups, 1);
-                let badSubgroup = await Simulator.getSubgroupMembers(policyholders, subgroups, 2);
-
-                for(let i = 0; i < 3; i++) {
-                    await GroupDriver.openClaim(Group, goodSubgroup[i]);
-                    await GroupDriver.openClaim(Group, badSubgroup[i]);
-                }
-
-                for(let i = 1; i <= 6; i ++) {
-                    let claim = await Group.getClaim(i);
-                    console.log("Claim #: " + i + "; Claimant: " + claim.claimant + "; State: " + claim.state.toString());
-                }
-
-                console.log("Claim Index: ", (await Group.getClaimIndex()).toString());
-                console.log("Payout: ", (await Group.getPayout()).toString());
-
-                await Simulator.passDays(24);
-
-                for(let i = 0; i < 2; i++) {
-                    await GroupDriver.approveClaim(Group, goodSubgroup[i], secretary);
-                    await GroupDriver.approveClaim(Group, badSubgroup[i], secretary);
-                }
-
-                await GroupDriver.rejectClaim(Group, goodSubgroup[2], secretary);
-                await GroupDriver.rejectClaim(Group, badSubgroup[2], secretary);
-
-                for(let i = 1; i <= 6; i ++) {
-                    let claim = await Group.getClaim(i);
-                    console.log("Claim #: " + i + "; Claimant: " + claim.claimant + "; State: " + claim.state.toString());
-                }
-
-                for(let i = 4; i >= 2; i--) {
-                    await GroupDriver.defect(Group, badSubgroup[i]);
-                }
-
-                for(let i = 1; i <= 6; i ++) {
-                    let claim = await Group.getClaim(i);
-                    console.log("Claim #: " + i + "; Claimant: " + claim.claimant + "; State: " + claim.state.toString());
-                }
-
-                console.log("Claim Index: ", (await Group.getClaimIndex()).toString());
-                console.log("Payout: ", (await Group.getPayout()).toString());
-
-                console.log("Unlocked?: ", await GroupDriver.remittable(Group, admin));
-                await Simulator.passDays(3);
-                console.log("Unlocked?: ", await GroupDriver.remittable(Group, admin));
-                console.log("Period index: ", (await Group.getPeriod()).toString());
-                for(let i = 0; i < policyholders.length; i++)
-                    console.log("Dai balance of " + i + ": ", (await Dai.balanceOf(policyholders[i])).toNumber());
-                await ServiceDriver.remitGroup(TandaPayService, Group, admin);
-                console.log("Period index: ", (await Group.getPeriod()).toString());
-                console.log("Claim index: ", (await Group.getClaimIndex()).toString());
-                console.log("Balance: ", (await Dai.balanceOf(Group.address)).toString());
-                for(let i = 0; i < policyholders.length; i++)
-                    console.log("Dai balance of " + i + ": ", (await Dai.balanceOf(policyholders[i])).toNumber());
             });
         });
     });
-    /* describe('Time-restricted Checks', async () => {
+    describe('Time-restricted Checks', async () => {
+        before(async () => {
+            await Simulator.passDays(3);
+            await ServiceDriver.remitGroup(TandaPayService, Group, admin);
+            await GroupDriver.lock(Group, secretary);
+        });
         describe('PRE Period Check', async () => {
             it('addPolicyholder() only in PRE period', async () => {
                 
@@ -368,56 +320,106 @@ contract("TandaPayService", async (accounts) => {
         });
         describe('TandaPayService Gas Fee Checks', async () => {
             it('addAdmin() <= 1,000,000 gas', async () => {
-                let gas = await ServiceDriver.gasAddAdmin(TandaPayService, policyholders[0], admin);
-                gas.should.be.at.most(gasLimit);
+                let tx = await ServiceDriver.addAdmin(TandaPayService, policyholders[0], admin);
+                (await Simulator.gasConsumed(tx)).should.be.at.most(gasLimit);
             });
             it('removeAdmin() <= 1,000,000 gas', async () => {
-                let gas = await ServiceDriver.gasRemoveAdmin(TandaPayService, policyholders[0], admin);
-                gas.should.be.at.most(gasLimit);
+                let tx = await ServiceDriver.removeAdmin(TandaPayService, policyholders[0], admin);
+                (await Simulator.gasConsumed(tx)).should.be.at.most(gasLimit);
             });
             it('removeSecretary() <= 1,000,000 gas', async () => {
-                let gas = await ServiceDriver.gasRemoveSecretary(TandaPayService, Group, admin);
-                gas.should.be.at.most(gasLimit);
+                let tx = await ServiceDriver.removeSecretary(TandaPayService, Group, admin);
+                (await Simulator.gasConsumed(tx)).should.be.at.most(gasLimit);
             });
             it('installSecretary() <= 1,000,000 gas', async () => {
-                let gas = await ServiceDriver.gasInstallSecretary(TandaPayService, Group, policyholders[0], admin);
-                gas.should.be.at.most(gasLimit);
+                let tx = await ServiceDriver.installSecretary(TandaPayService, Group, secretary, admin);
+                (await Simulator.gasConsumed(tx)).should.be.at.most(gasLimit);
             });
-            it('remitGroup() <= 1,000,000 gas', async () => {
+            describe('remitGroup() Gas Tests', async () => {
+                it('No Activity Group <= 1,000,000 gas', async () => {
+                    console.log("Group balance",(await web3.eth.getBalance(Group.address)).toString());
+                    console.log("Participants Index: ", (await Group.getParticipantIndex()).toString());
+                    console.log("Claim index: ", (await Group.getClaimIndex()).toString());
+                    await GroupDriver.lock(Group, secretary);
+                    await Simulator.passDays(30);
+                    let tx = await ServiceDriver.remitGroup(TandaPayService, Group, admin);
+                    (await Simulator.gasConsumed(tx)).should.be.at.most(gasLimit);
+                });
+                it('No Claims, Premium Paid Group Remit <= 1,000,000 gas', async () => {
+                    await GroupDriver.lock(Group, secretary);
+                    await Simulator.payPremiumAll(Group, Dai, policyholders);
+                    conso
+                    console.log("Group balance", (await DaiDriver.getDaiBalance(Dai, Group.address)).toString());
+                    console.log("Participants Index: ", (await Group.getParticipantIndex()).toString());
+                    await Simulator.passDays(30);
+                    let tx = await ServiceDriver.remitGroup(TandaPayService, Group, admin);
+                    (await Simulator.gasConsumed(tx)).should.be.at.most(gasLimit);
+                });
+                it('1 Claim, No Toxic Subgroups Remit <= 1,000,000 gas', async () => {
+                    await GroupDriver.lock(Group, secretary);
+                    await Simulator.payPremiumAll(Group, Dai, policyholders);
+                    await Simulator.passDays(3);
+                    await GroupDriver.openClaim(Group, policyholders[0]);
+                    await Simulator.passDays(24);
+                    await GroupDriver.approveClaim(Group, policyholders[0], secretary);
+                    await Simulator.passDays(3);
+                    let tx = await ServiceDriver.remitGroup(TandaPayService, Group, admin);
+                    (await Simulator.gasConsumed(tx)).should.be.at.most(gasLimit);
+                });
+                it('3 Claims, No Toxic Subgroups Remit <= 1,000,000 gas', async () => {
+                    //await GroupDriver.lock(Group, secretary)
+                });
+                it('4 Claims, 1 Toxic Subgroup Remit <= 1,000,000 Gas', async () => {
 
+                });
             });
             it('loan() <= 1,000,000 gas', async () => {
-
+                //@dev todo
             });
         });
         describe('Group Gas Fee Checks', async () => {
             it('addPolicyholder() <= 1,000,000 gas', async () => {
-
-            });
-            it('removePolicyholder() <= 1,000,000 gas', async () => {
-
+                //let tx = await GroupDriver.addPolicyholder(Group, accounts[2], 8, secretary);
+                //(await Simulator.gasConsumed(tx)).should.be.at.most(gasLimit);
             });
             it('changeSubgroup() <= 1,000,000 gas', async () => {
-
+                //let tx = await GroupDriver.addPolicyholder(Group, accounts[2], 9, secretary);
+                //(await Simulator.gasConsumed(tx)).should.be.at.most(gasLimit);
+            });
+            it('removePolicyholder() <= 1,000,000 gas', async () => {
+                //let tx = await GroupDriver.removePolicyholder(Group, accounts[2], secretary);
+                //(await Simulator.gasConsumed(tx)).should.be.at.most(gasLimit);        
             });
             it('lock() <= 1,000,000 gas', async () => {
-
+                //let tx = await GroupDriver.lock(Group, secretary);
+                //(await Simulator.gasConsumed(tx)).should.be.at.most(gasLimit);
             });
             it('payPremium() <= 1,000,000 gas', async () => {
-
+                //let tx = await GroupDriver.payPremium(Group, Dai, policyholders[0]);
+                //(await Simulator.gasConsumed(tx)).should.be.at.most(gasLimit);
+                //tx = await GroupDriver.payPremium(Group, Dai, policyholders[1]);
+                //(await Simulator.gasConsumed(tx)).should.be.at.most(gasLimit);
             });
             it('openClaim() <= 1,000,000 gas', async () => {
-
+                //await Simulator.passDays(3);
+                //let tx = await GroupDriver.openClaim(Group, policyholders[0]);
+                //(await Simulator.gasConsumed(tx)).should.be.at.most(gasLimit);
+                //tx = await GroupDriver.openClaim(Group, policyholders[1]);
+                //(await Simulator.gasConsumed(tx)).should.be.at.most(gasLimit);
             });
-            it('removeClaim() <= 1,000,000 gas', async () => {
-
+            it('rejectClaim() <= 1,000,000 gas', async () => {
+                //await Simulator.passDays(24);
+                //let tx = await GroupDriver.rejectClaim(Group, policyholders[0], secretary);
+                //(await Simulator.gasConsumed(tx)).should.be.at.most(gasLimit);
             });
             it('approveClaim() <= 1,000,000 gas', async () => {
-
+                //let tx = await GroupDriver.approveClaim(Group, policyholders[1], secretary);
+                //(await Simulator.gasConsumed(tx)).should.be.at.most(gasLimit);
             });
             it('defect() <= 1,000,000 gas', async () => {
-
+                //let tx = await GroupDriver.defect(Group, policyholders[1], secretary);
+                //(await Simulator.gasConsumed(tx)).should.be.at.most(gasLimit);
             });
         });
-    }); */
+    });
 });

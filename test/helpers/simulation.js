@@ -73,6 +73,22 @@ const time = require("./time")
     },
 
     /**
+     * Return an array of all addresses in subgroup id targetIndex
+     * @param _policyholders array of Ethereum addresses
+     * @param _subgroups array of integers for subgroup ID
+     * @param _targetIndex subgroup ID to query
+     * @return array of all addresses in _policyholders with subgroup ID in _subgroups of _targetIndex
+     */
+    getSubgroupMembers: async (_policyholders, _subgroups, _targetIndex) => {
+        let subgroup = [];
+        for(let i = 0; i < _policyholders.length; i++) {
+            if(_subgroups[i] == _targetIndex)
+                subgroup.push(_policyholders[i]);
+        }
+        return subgroup;
+    },
+
+    /**
      * Pay premium in Tanda Group for every address in _accounts as Policyholder
      * @param _group truffle-contract object of Group contract
      * @param _dai truffle-contract object of Dai contract
@@ -93,6 +109,15 @@ const time = require("./time")
     },
 
     /**
+     * Determine the empirical gas consumption of a valid transaction
+     * @param _tx truffle-contract transaction object being queried for gas consumption
+     * @return total gas consumed in _tx as a string object
+     */
+    gasConsumed: async (_tx) => {
+        return await _tx.receipt.gasUsed;
+    },
+
+    /**
      * Use Fisher-Yates array randomization algorithm on unshuffled subgroup array
      * @dev https://stackoverflow.com/questions/2450954/how-to-randomize-shuffle-a-javascript-array/2450976#2450976
      * @param arr (can be an array of arbitrary objects) the array of subgroup integers being randomized
@@ -110,21 +135,5 @@ const time = require("./time")
             arr[random] = temporary;
         }
         return arr;
-    },
-
-    /**
-     * Return an array of all addresses in subgroup id targetIndex
-     * @param _policyholders array of Ethereum addresses
-     * @param _subgroups array of integers for subgroup ID
-     * @param _targetIndex subgroup ID to query
-     * @return array of all addresses in _policyholders with subgroup ID in _subgroups of _targetIndex
-     */
-    getSubgroupMembers: async (_policyholders, _subgroups, _targetIndex) => {
-        let subgroup = [];
-        for(let i = 0; i < _policyholders.length; i++) {
-            if(_subgroups[i] == _targetIndex)
-                subgroup.push(_policyholders[i]);
-        }
-        return subgroup;
     }
 }

@@ -160,7 +160,6 @@ contract Group is IGroup {
         uint payout = getPayout();
         for(uint8 i = 1; i <= claimIndex; i++) {
             address claimant = period.claims[i].policyholder;
-            require(claimant != address(0), "Whoops");
             Dai.transfer(claimant, payout);
             removeParticipant(claimant);
         }
@@ -247,6 +246,10 @@ contract Group is IGroup {
 
     function getPeriodIndex() public view returns (uint index) {
         index = periodIndex.current();
+    }
+
+    function getParticipantIndex() public view returns (uint index) {
+        index = participantIndex.current();
     }
 
     function getClaim(uint8 index) public view returns (address claimant, uint state) {
