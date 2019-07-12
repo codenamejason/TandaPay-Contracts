@@ -4,12 +4,12 @@ import './IGroup.sol';
 
 /**
  * @author blOX Consulting LLC.
- * Date: 6.20.19
+ * Date: 7.11.19
  * Interface for TandaPay Group child contract
  **/
 contract Group is IGroup {
 
-    Loan loan;
+    Loan loan; //@dev working on loan now
     
     constructor(address _secretary, uint8 _premium, address _dai) public {
         secretary = _secretary;
@@ -145,7 +145,7 @@ contract Group is IGroup {
         for(uint8 i = 1; i <= period.claimIndex.current(); i++) {
             Claim storage claim = period.claims[i];
             uint8 subgroup = policyholders[claim.policyholder];
-            if(toxicSubgroup[subgroup]){
+            if(toxicSubgroup[subgroup]) {
                 emit ToxicClaimStripped(claim.policyholder);
                 removeClaim(i);
                 i--;
@@ -168,12 +168,13 @@ contract Group is IGroup {
     function payRefunds() internal {
         if(Dai.balanceOf(address(this)) > 0) {
             uint8 participantsLength = uint8(participantIndex.current());
-            uint share = Dai.balanceOf(address(this)).sub(participantsLength);
-            for(uint8 i = 0; i < participantsLength; i++) {
+            uint share = Dai.balanceOf(address(this)).div(participantsLength);
+            for(uint8 i = 1; i <= participantsLength; i++) {
                 address participant = activeParticipants[i];
                 Dai.transfer(participant, share);
-                delete participantToIndex[participant];
                 delete activeParticipants[i];
+                delete participantToIndex[participant];
+                participantIndex.decrement();
             }
         }
     }
@@ -208,78 +209,164 @@ contract Group is IGroup {
         periodIndex.increment();
     }
 
+    /// VIEW FUNCTIONS ///
+    
     function isLoaned() public view returns (bool) {
         return (loan.deficit > 0);
     }
 
-    ///DEV///
-
-    function size() public view returns (uint) {
-        return groupSize.current();
+    /**
+     * Determine the number of Policyholder addresses a Secretary has added to their Group
+     * @return uint16 the number of whitelisted Policyholder addresses
+     */
+    function size() public view returns (uint16) {
+        return uint16(groupSize.current());
     }
-
-    function getPremium() public view returns (uint _premium) {
+    
+    /**
+     * Determine the full premium payment that must be made to the Group escrow
+     * @return _premium uint8 value in Dai that a policyholder must pay
+     */
+    function getPremium() public view isPolicyholder returns (uint8 _premium) {
         uint subgroup = subgroupCounts[policyholders[msg.sender]].current();
         uint overpayment = uint256(premium).div(subgroup);
         uint total = uint256(premium).add(overpayment);
-        _premium = total;
+        _premium = uint8(total);
     }
 
-    function getSubgroupCount(uint8 _subgroup) public view returns (uint) {
-        return subgroupCounts[_subgroup].current();
+    /**
+     * Determine the number of members within a given subgroup
+     * @param _subgroup uint8 index to be queried in mapping subgroupCounts
+     * @return uint8 number of Policyholders in the specified subgroup
+     */
+    function getSubgroupCount(uint8 _subgroup) public view returns (uint8) {
+        return uint8(subgroupCounts[_subgroup].current());
     }
 
+    /**
+     * Determine whether the address queried is a Premium-Paid Policyholder in this Group
+     * @return true if the address has Paid a Dai premium for the escrow in this Group this Period
+     */
     function isActive(address _query) public view returns (bool) {
         return (participantToIndex[_query] != 0);
     }
 
+    /**
+     * Determine whether the address queried is a Policyholder in this Group
+     * return true if the address is a Policyholder, and false otherwise
+     */
     function isPH(address _query) public view returns (bool) {
         return (policyholders[_query] != 0);
     }
 
-    function getLocks() public view returns (uint pre, uint active, uint post, uint unlockPeriod) {
+    /**
+     * Determine the UNIX timestamps that dictate the Group's escrow timelocks
+     * @return pre uint UNIX time when the PRE period begins
+     * @return active uint UNIX time when the PRE period ends and the ACTIVE period begins
+     * @return post uint UNIX time when the ACTIVE period ends and the POST period begins
+     * @return unlockLobby uint UNIX time when the POST period ends and the TandaPayService can remit the Group's escrow
+     */
+    function getLocks() public view returns (uint pre, uint active, uint post, uint unlockLobby) {
         pre = locks[0];
         active = locks[1];
         post = locks[2];
-        unlockPeriod = locks[3];
+        unlockLobby = locks[3];
     }
 
-    function getPeriodIndex() public view returns (uint index) {
-        index = periodIndex.current();
+    /**
+     * Determine how many policyholders have paid their premiums in the current period
+     * @return index uint8 index in mapping activeParticipants
+     */
+    function getParticipantIndex() public view returns (uint8 index) {
+        index = uint8(participantIndex.current());
     }
 
-    function getParticipantIndex() public view returns (uint index) {
-        index = participantIndex.current();
-    }
-
-    function getClaim(uint8 index) public view returns (address claimant, uint state) {
+    /**
+     * Determine the associated information of a given Claim in the given Period
+     * @dev claimState: [0, 1, 2] :: [REJECTED, OPEN, ACCEPTED]
+     * @param _index uint8 index of Claim in mapping claims
+     * @return claimant address of Policyholder account that opened claim
+     * @return uint state the state of the Claim in the Group
+     */
+    function getClaim(uint8 _index) public view returns (address claimant, uint state) {
         Period storage period = periods[uint16(periodIndex.current())];
-        Claim memory claim = period.claims[index];
+        Claim memory claim = period.claims[_index];
         claimant = claim.policyholder;
         state = uint(claim.state);
     }
 
-    function getClaimIndex() public view returns (uint index) {
+    /**
+     * Determine the current Claim index of the current Period
+     * @return index uint8 current index in mapping claims
+     */
+    function getClaimIndex() public view returns (uint8 index) {
         Period storage period = periods[uint16(periodIndex.current())];
-        index = period.claimIndex.current();
+        index = uint8(period.claimIndex.current());
     }
 
-    function addressToClaim(address _query) public view returns (uint index) {
+    /**
+     * Determine the Claim associated with a given policyholder in the current Group
+     * @dev should be 0 if address has not opened a claim this period
+     * @param _query the address being used as a key to search for a Claim
+     * @return index uin8 index of Claim in mapping claims
+     */
+    function addressToClaim(address _query) public view returns (uint8 index) {
         Period storage period = periods[uint16(periodIndex.current())];
         index = period.openedClaim[_query];
     }
 
-    function getPayout() public view returns (uint payout) {
+    /**
+     * Determine the current payout for a single claimant
+     * @dev counts all claims with state ACCEPTED and OPEN
+     * @return uint16 value of Dai that will be transferred to claimants
+     */
+    function getPayout() public view returns (uint16) {
         uint index = getClaimIndex();
         if(index == 0)
-            index = index.add(1); // dont divide by 0, @dev hacky
+            index = index.add(1);
         uint maxPayout = uint256(premium).mul(25);
-        payout = Dai.balanceOf(address(this)).div(index);
+        uint payout = Dai.balanceOf(address(this)).div(index);
         if(payout > maxPayout)
             payout = maxPayout;
+        return uint16(payout);
     }
 
-    function getPeriod() public view returns (uint period) {
-        return periodIndex.current();
+    /**
+     * Determine the period number of this Group contract
+     * @dev should be 0 if lock() has never been called
+     * @return period uint16 period index 
+     */
+    function getPeriod() public view returns (uint16 period) {
+        return uint16(periodIndex.current());
+    }
+
+    /**
+     * Determine the current periodState as an unsigned integer
+     * @dev [0, 1, 2, 3] :: [PRE, ACTIVE, POST, LOBBY]
+     * @return state uint8 integer representation of period state
+     */
+    function uintGetPeriodState() public view returns (uint8 state) {
+        for(uint8 i = 0; i < 3; i++) {
+            if(locks[i] <= now && now < locks[i+1])
+                return (i);
+        }
+        return (3);
+    }
+
+    /**
+     * determine the current periodState as a periodState enumeration
+     * @return state periodState of Group
+     */
+    function getSubperiod() public view returns (periodState state) {
+        uint8 subperiod = uintGetPeriodState();
+        if(subperiod == 0) {
+            return periodState.PRE;
+        } else if(subperiod == 1) {
+            return periodState.ACTIVE;
+        } else if(subperiod == 2) {
+            return periodState.POST;
+        } else {
+            return periodState.LOBBY;
+        }
     }
 }

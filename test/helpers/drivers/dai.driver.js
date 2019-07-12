@@ -11,7 +11,8 @@ module.exports = {
      * @return the truffle-contract object of the Dai Contract
      */
     deploy: async () => {
-        return await DaiContract.deployed();
+        let Dai = await DaiContract.deployed();
+        return Dai;
     },
 
     /**

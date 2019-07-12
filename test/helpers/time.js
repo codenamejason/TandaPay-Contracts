@@ -1,3 +1,7 @@
+/**
+ * Taken from openzeppelin-test-helpers
+ * https://github.com/OpenZeppelin/openzeppelin-test-helpers/blob/master/src/time.js
+ */
 const BN = web3.utils.BN;
 const { promisify } = require('util');
 

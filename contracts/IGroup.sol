@@ -6,7 +6,7 @@ import 'openzeppelin-solidity/contracts/drafts/Counters.sol';
 import 'openzeppelin-solidity/contracts/math/SafeMath.sol';
 /**
  * @author blOX Consulting LLC.
- * Date: 06.20.2019
+ * Date: 07.11.2019
  * Interface for TandaPay Groups
  * User services: Policyholder and Secretary
  * Groups are deployed for secretaries by TandaPayService
