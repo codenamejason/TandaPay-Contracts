@@ -7,6 +7,7 @@
 const Simulator = require('../simulation.js');
 const { DaiDriver, ServiceDriver, GroupDriver } = require("../driver.js");
 require('chai').use(require('chai-as-promised')).should();
+const { expectRevert } = require('openzeppelin-test-helpers');
 
 /**
  * Funcitonal testing export
@@ -18,7 +19,7 @@ module.exports = async (accounts) => {
     let admin = accounts[0];
     let secretary = accounts[5];
     let premium = web3.utils.toBN(20);
-    describe('Gas Limit Checks', async () => {
+    describe('Functional Property Checks', async () => {
         before(async () => {
             //test suite message
             console.log("   > Ensure TandaPay Smart Contract Functions demonstrate all required properties");
@@ -32,7 +33,10 @@ module.exports = async (accounts) => {
         describe('TandaPayService Functionality Check', async () => {
             describe('addAdmin() Functionality Check', async () => {
                 it('New account cannot access createGroup() before being added', async () => {
-
+                    await expectRevert(
+                        GroupDriver.lock(Group, admin),
+                        "Address is not this Group's Secretary!"
+                    );
                 });
                 it('New account can access createGroup() after being added', async() => {
 

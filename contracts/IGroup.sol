@@ -98,7 +98,7 @@ contract IGroup is Secondary {
     
     modifier unlocked() {
         require(locks[uint8(periodState.POST)] <= now,
-            "Cannot perform remittance while Insurance escrow is still timelocked!");
+            "Cannot perform remittance while Insurance escrow is timelocked!");
         _;
     }
 

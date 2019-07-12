@@ -7,6 +7,7 @@
 const Simulator = require('../simulation.js');
 const { DaiDriver, ServiceDriver, GroupDriver } = require("../driver.js");
 require('chai').use(require('chai-as-promised')).should();
+const { expectRevert } = require('openzeppelin-test-helpers');
 
 /**
  * Roll-based authentication testing export
@@ -16,6 +17,7 @@ require('chai').use(require('chai-as-promised')).should();
 module.exports = async (accounts) => {
     let Dai, TandaPayService, Group;
     let policyholders, subgroups;
+    let revertMessage;
     let admin = accounts[0];
     let secretary = accounts[2];
     let premium = web3.utils.toBN(20);
@@ -32,70 +34,96 @@ module.exports = async (accounts) => {
             await Simulator.allPHinGroup(Group, policyholders, subgroups, secretary);
         });
         describe('Admin RBA Check', async() => {
+            before(async () => {
+                revertMessage = "Address is not a TandaPay Administrator!";
+            })
             it('Only administrators can call addAdmin()', async () => {
-                await ServiceDriver.addAdmin(TandaPayService, accounts[60], accounts[60])
-                    .should.be.rejectedWith('revert');
+                await expectRevert(
+                    ServiceDriver.addAdmin(TandaPayService, accounts[60], accounts[60]),
+                    revertMessage
+                );
                 await ServiceDriver.addAdmin(TandaPayService, accounts[60], admin)
-                    .should.be.fulfilled;               
+                    .should.be.fulfilled;        
             });
             it('Only administrators can call removeAdmin()', async () => {
-                await ServiceDriver.removeAdmin(TandaPayService, accounts[60], accounts[61])
-                    .should.be.rejectedWith('revert');
+                await expectRevert(
+                    ServiceDriver.removeAdmin(TandaPayService, accounts[60], accounts[61]),
+                    revertMessage
+                );
                 await ServiceDriver.removeAdmin(TandaPayService, accounts[60], admin)
                     .should.be.fulfilled;
             });
             it('Only administrators can call createGroup()', async () => {
-                await ServiceDriver.createGroup(TandaPayService, accounts[62], premium, accounts[62])
-                    .should.be.rejectedWith('revert');
+                await expectRevert(
+                    ServiceDriver.createGroup(TandaPayService, accounts[62], premium, accounts[62]),
+                    revertMessage
+                );
                 await ServiceDriver.createGroup(TandaPayService, accounts[62], premium, admin)
                     .should.be.fulfilled;
             });
             it('Only administrators can call removeSecretary()', async () => {
-                await ServiceDriver.removeSecretary(TandaPayService, Group, accounts[63])
-                    .should.be.rejectedWith('revert');
+                await expectRevert(
+                    ServiceDriver.removeSecretary(TandaPayService, Group, accounts[63]),
+                    revertMessage
+                );
                 await ServiceDriver.removeSecretary(TandaPayService, Group, admin)
                     .should.be.fulfilled;
             });
             it('Only administrators can call installSecretary()', async () => {
-                await ServiceDriver.installSecretary(TandaPayService, Group, secretary, accounts[64])
-                    .should.be.rejectedWith('revert');
+                await expectRevert(
+                    ServiceDriver.installSecretary(TandaPayService, Group, secretary, accounts[64]),
+                    revertMessage
+                );
                 await ServiceDriver.installSecretary(TandaPayService, Group, secretary, admin)
                     .should.be.fulfilled;
             });
             it('Only administrators can call remitGroup()', async () => {
                 await GroupDriver.lock(Group, secretary);
                 await Simulator.passDays(30);
-                await ServiceDriver.remitGroup(TandaPayService, Group, accounts[65])
-                    .should.be.rejectedWith('revert');
+                await expectRevert(
+                    ServiceDriver.remitGroup(TandaPayService, Group, accounts[65]),
+                    revertMessage
+                );
                 await ServiceDriver.remitGroup(TandaPayService, Group, admin)
                     .should.be.fulfilled;
             });
-            it('Only administrators can call loan()', async () => {
+            /* it('Only administrators can call loan()', async () => {
                 //@dev todo
-            });
+            }); */
         });
         describe('Secretary RBA Check', async () => {
+            before(async () => {
+                revertMessage = "Address is not this Group's Secretary!";
+            });
             it('Only secretary can call addPolicyholder()', async() => {
-                await GroupDriver.addPolicyholder(Group, accounts[66], 8, accounts[66])
-                    .should.be.rejectedWith('revert');  
+                await expectRevert(
+                    GroupDriver.addPolicyholder(Group, accounts[66], 8, accounts[66]),
+                    revertMessage
+                );
                 await GroupDriver.addPolicyholder(Group, accounts[66], 8, secretary)
                     .should.be.fulfilled;
             });
             it('Only secretary can call changeSubgroup()', async () => {
-                await GroupDriver.changeSubgroup(Group, accounts[66], 9, accounts[67])
-                    .should.be.rejectedWith('revert');
+                await expectRevert(
+                    GroupDriver.changeSubgroup(Group, accounts[66], 9, accounts[67]),
+                    revertMessage
+                );
                 await GroupDriver.changeSubgroup(Group, accounts[66], 9, secretary)
                     .should.be.fulfilled;
             });
             it('Only secretary can call removePolicyholder()', async() => {
-                await GroupDriver.removePolicyholder(Group, accounts[66], accounts[68])
-                    .should.be.rejectedWith('revert');
+                await expectRevert(
+                    GroupDriver.removePolicyholder(Group, accounts[66], accounts[68]),
+                    revertMessage
+                );
                 await GroupDriver.removePolicyholder(Group, accounts[66], secretary)
                     .should.be.fulfilled;
             });
             it('Only secretary can call lock()', async () => {
-                await GroupDriver.lock(Group, accounts[69])
-                    .should.be.rejectedWith('revert');
+                await expectRevert(
+                    GroupDriver.lock(Group, accounts[69]),
+                    revertMessage
+                );
                 await GroupDriver.lock(Group, secretary)
                     .should.be.fulfilled;
             });
@@ -106,14 +134,18 @@ module.exports = async (accounts) => {
                 await GroupDriver.openClaim(Group, policyholders[0]);
                 await GroupDriver.openClaim(Group, policyholders[1]);
                 await Simulator.passDays(24);
-                await GroupDriver.rejectClaim(Group, policyholders[0], accounts[70])
-                    .should.be.rejectedWith('revert');
+                await expectRevert(
+                    GroupDriver.rejectClaim(Group, policyholders[0], accounts[70]),
+                    revertMessage
+                );
                 await GroupDriver.rejectClaim(Group, policyholders[0], secretary)
                     .should.be.fulfilled;
             });
             it('Only secretary can call approveClaim()', async () => {
-                await GroupDriver.approveClaim(Group, policyholders[1], accounts[71])
-                    .should.be.rejectedWith('revert');
+                await expectRevert(
+                    GroupDriver.approveClaim(Group, policyholders[1], accounts[71]),
+                    revertMessage
+                );
                 await GroupDriver.approveClaim(Group, policyholders[1], secretary)
                     .should.be.fulfilled;
             });
@@ -126,22 +158,28 @@ module.exports = async (accounts) => {
                 await GroupDriver.lock(Group, secretary);
             });
             it('Only policyholder can call payPremium()', async () => {
-                await GroupDriver.payPremium(Group, Dai, accounts[71])
-                    .should.be.rejectedWith('revert');
+                await expectRevert(
+                    GroupDriver.payPremium(Group, Dai, accounts[71]),
+                    "Address is not a Policyholder in this Group!"
+                );
                 await GroupDriver.payPremium(Group, Dai, policyholders[0])
                     .should.be.fulfilled;
             });
             it('Only ACTIVE policyholder can call openClaim()', async () => {
                 await Simulator.passDays(3);
-                await GroupDriver.openClaim(Group, accounts[72])
-                    .should.be.rejectedWith('revert');
+                await expectRevert(
+                    GroupDriver.openClaim(Group, accounts[72]),
+                    "Policyholder is not active in the current Period!"
+                );
                 await GroupDriver.openClaim(Group, policyholders[0])
                     .should.be.fulfilled;
             });
             it('Only ACTIVE policyholder can call defect()', async() => {
                 await Simulator.passDays(24);
-                await GroupDriver.defect(Group, accounts[73])
-                    .should.be.rejectedWith('revert');
+                await expectRevert(
+                    GroupDriver.defect(Group, accounts[73]),
+                    "Policyholder is not active in the current Period!"
+                );
                 await GroupDriver.defect(Group, policyholders[0])
                     .should.be.fulfilled;
             });

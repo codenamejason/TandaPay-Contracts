@@ -7,6 +7,7 @@
 const Simulator = require('../simulation.js');
 const { DaiDriver, ServiceDriver, GroupDriver } = require("../driver.js");
 require('chai').use(require('chai-as-promised')).should();
+const { expectRevert } = require('openzeppelin-test-helpers');
 
 /**
  * Time testing export
@@ -34,18 +35,22 @@ module.exports = async (accounts) => {
             await Simulator.allPHinGroup(Group, policyholders, subgroups, secretary);
         });
         describe('LOBBY Check', async () => {
-            it('addPolicyholder() only while unlocked', async () => {
+            it('addPolicyholder() only while in unlocked in LOBBY', async () => {
                 await GroupDriver.addPolicyholder(Group, accounts[5], 10, secretary)
                     .should.be.fulfilled;
                 await GroupDriver.removePolicyholder(Group, accounts[5], secretary);
                 await GroupDriver.lock(Group, secretary);
                 await Simulator.passDays(1);
-                await GroupDriver.addPolicyholder(Group, accounts[5], 10, accounts[74])
-                    .should.be.rejectedWith('revert');
+                await expectRevert(
+                    await GroupDriver.addPolicyholder(Group, accounts[5], 10, accounts[74]),
+                    "Cannot perform remittance while Insurance escrow is timelocked!"
+                );
+                //await GroupDriver.addPolicyholder(Group, accounts[5], 10, accounts[74])
+                //    .should.be.rejectedWith('revert');
                 await Simulator.passDays(29);
                 await ServiceDriver.remitGroup(TandaPayService, Group, admin);
             });
-            it('removePolicyholder() only while unlocked', async () => {
+            it('removePolicyholder() only while unlocked in LOBBY', async () => {
                 await GroupDriver.addPolicyholder(Group, accounts[5], 10, secretary);
                 await GroupDriver.removePolicyholder(Group, accounts[5], secretary)
                     .should.be.fulfilled;
@@ -57,7 +62,7 @@ module.exports = async (accounts) => {
                 await Simulator.passDays(29);
                 await ServiceDriver.remitGroup(TandaPayService, Group, admin);
             });
-            it('changeSubgroup() only while unlocked', async () => {
+            it('changeSubgroup() only while unlockd in LOBBY', async () => {
                 await GroupDriver.changeSubgroup(Group, accounts[5], 11, secretary)
                     .should.be.fulfilled;
                 await GroupDriver.lock(Group, secretary);
@@ -68,7 +73,7 @@ module.exports = async (accounts) => {
                 await ServiceDriver.remitGroup(TandaPayService, Group, admin);
                 await GroupDriver.removePolicyholder(Group, accounts[5], secretary);
             });
-            it('lock() only in PRE period', async() => {
+            it('lock() only while unlocked in LOBBY', async() => {
                 await GroupDriver.lock(Group, secretary)
                     .should.be.fulfilled;
                 await Simulator.passDays(10);

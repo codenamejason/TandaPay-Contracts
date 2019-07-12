@@ -25,8 +25,8 @@ contract("TandaPayService", async (accounts) => {
         await Simulator.mintPolicyholders(Dai, policyholders, admin);
     });
 
-    it('RBA', async () => { RBA(accounts) });
+    //it('RBA', async () => { RBA(accounts) });
     it('Time', async () => { Time(accounts) });
     //it('Functional', async () => { Functional(accounts) });
-    it('Gas Limit', async () => { Gas(accounts) });
+    //it('Gas Limit', async () => { Gas(accounts) });
 });
