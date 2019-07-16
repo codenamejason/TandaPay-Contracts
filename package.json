@@ -4,7 +4,8 @@
   "description": "TandaPay Prototype Revision",
   "main": "truffle-config.js",
   "scripts": {
-    "test": "truffle test"
+    "test": "truffle test",
+    "test-kovan": "truffle test test/kovan.test.js --network kovan"
   },
   "repository": {
     "type": "git",

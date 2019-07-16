@@ -1,6 +1,6 @@
 /**
  * @author blOX Consulting LLC
- * @date July 11, 2019
+ * @date July 15, 2019
  * Test script for Gas Limit testing in TandaPay Smart Contracts
  **/
 
@@ -14,6 +14,7 @@ require('chai').use(require('chai-as-promised')).should();
  * @param accounts all accounts in the global web3 instance
  */
 module.exports = async (accounts) => {
+    console.log('flag');
     let Dai, TandaPayService, Group;
     let policyholders, subgroups;
     let admin = accounts[0];
