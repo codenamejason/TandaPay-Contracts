@@ -5,7 +5,7 @@ import './TestGroup.sol';
 
 /**
  * @author blOX Consulting LLC.
- * Date: 7.15.19
+ * Date: 7.18.19
  * Tester for TandaPayService to allow Time Manipulation on live networks
  **/
 contract TestService is ITandaPayService {
@@ -30,7 +30,7 @@ contract TestService is ITandaPayService {
     
     function createGroup(address _to, uint8 _premium) public isAdmin() returns (address _group) {
         require(groups[secretaries[_to]] == address(0), "Address is already a Secretary!");
-        require(MIN_PREMIUM < _premium && _premium <= MAX_PREMIUM, "Premium is out of bounds! (Too high or low)");
+        require(_premium == 1, "Kovan Test Service requires Premium of 1!");
         TestGroup group = new TestGroup(_to, _premium, address(Dai));
         groupCount.increment();
         _group = address(group);
@@ -66,4 +66,53 @@ contract TestService is ITandaPayService {
     }
 
     function loan(address _group) public isAdmin {}
+
+    /**
+     * @dev TESTSERVICE Function
+     * Set the internal clock of a TestGroup
+     * @param _group address of the TestGroup being time-tested
+     * @param _time uint the UNIX time to set the internal clock to
+     */
+    function setTestClock(address _group, uint _time) public isAdmin {
+        TestGroup(_group).setTime(_time);
+    }
+
+    /**
+     * @dev TESTSERVICE Function
+     * Increment the internal clock by _days days
+     * @param _group address of the TestGroup being time-tested
+     * @param _days uint the number of days to increment the internal clock
+     */
+     function passDaysTestClock(address _group, uint _days) public isAdmin {
+        TestGroup(_group).passDays(_days);
+     }
+
+    /// VIEW ///
+
+    /**
+     * Return the number of deployed Groups
+     * @return count uint Group index
+     */
+    function getCount() public view returns (uint count) {
+        count = groupCount.current();
+    }
+
+    /**
+     * Return the Group Contract address stored at _index in mapping groups
+     * @param _index uint group index in TandaPayService
+     * @return group address of Group Contract
+     */
+    function groupAddress(uint _index) public view returns (address group) {
+        group = groups[_index];
+    }
+
+    /**
+     * @dev TESTSERVICE Function
+     * Get the current internal clock of a TestGroup
+     * @param _group address of the group to query
+     * @return time uint UNIX internal time of TestGroup
+     */
+    function getTestClock(address _group) public view returns (uint time) {
+        time = TestGroup(_group).getTime();
+    }
 }
