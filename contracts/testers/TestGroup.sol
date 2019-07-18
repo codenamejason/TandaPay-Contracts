@@ -12,10 +12,10 @@ import './Timer.sol';
  **/
 contract TestGroup is IGroup {
 
-    Timer private timer;
+    Timer timer;
     Loan loan; //@dev working on loan now
     
-    modifier correctPeriod(periodState _state) {
+    modifier correctPeriodTest(periodState _state) {
         require(locks[uint(_state)] > timer.getCurrent(), "Too late in period for this Action!");
         require(locks[uint(_state) - 1] <= timer.getCurrent(), "Too early in period for this Action!");
         _;
@@ -27,10 +27,15 @@ contract TestGroup is IGroup {
         _;
     }
 
+    function isUnlocked() public view returns (bool) {
+        return locks[uint8(periodState.POST)] <= timer.getCurrent();
+    }
+
     constructor(address _secretary, uint8 _premium, address _dai) public {
         secretary = _secretary;
         premium = _premium;
         Dai = IERC20(_dai);
+        timer = new Timer();
     }
     
     function addPolicyholder(address _to, uint8 _subgroup) public isSecretary() unlocked {
@@ -74,7 +79,7 @@ contract TestGroup is IGroup {
         emit Locked();
     }
     
-    function payPremium() public isPolicyholder() correctPeriod(periodState.PRE) {
+    function payPremium() public isPolicyholder() correctPeriodTest(periodState.PRE) {
         require(participantToIndex[msg.sender] == 0, "Address has already paid premium as a Policyholder!");
         uint subgroup = subgroupCounts[policyholders[msg.sender]].current();
         uint overpayment = uint256(premium).div(subgroup);
@@ -88,7 +93,7 @@ contract TestGroup is IGroup {
         emit PremiumPaid(msg.sender);
     }
     
-    function openClaim() public activePolicyholder() correctPeriod(periodState.ACTIVE) {
+    function openClaim() public activePolicyholder() correctPeriodTest(periodState.ACTIVE) {
         Period storage period = periods[uint16(periodIndex.current())];
         require(period.openedClaim[msg.sender] == 0, "Claimant already has an existing Claim!");
         
@@ -100,7 +105,7 @@ contract TestGroup is IGroup {
         emit ClaimOpened(msg.sender);
     }
 
-    function rejectClaim(address _claimant) public isSecretary() correctPeriod(periodState.POST) {
+    function rejectClaim(address _claimant) public isSecretary() correctPeriodTest(periodState.POST) {
         Period storage period = periods[uint16(periodIndex.current())];
         uint8 index = period.openedClaim[_claimant];
         require(index != 0, "Policyholder does not have an existing Claim!");
@@ -110,7 +115,7 @@ contract TestGroup is IGroup {
         emit ClaimRejected(_claimant);
     }
 
-    function approveClaim(address _claimant) public isSecretary() correctPeriod(periodState.POST) {
+    function approveClaim(address _claimant) public isSecretary() correctPeriodTest(periodState.POST) {
         Period storage period = periods[uint16(periodIndex.current())];
         uint8 index = period.openedClaim[_claimant];
         require(index != 0, "Policyholder does not have existing claim!");
@@ -120,7 +125,7 @@ contract TestGroup is IGroup {
         emit ClaimApproved(_claimant);
     }
     
-    function defect() public activePolicyholder() correctPeriod(periodState.POST) {
+    function defect() public activePolicyholder() correctPeriodTest(periodState.POST) {
         Period storage period = periods[uint16(periodIndex.current())];
         if(period.openedClaim[msg.sender] != 0)
             removeClaim(period.openedClaim[msg.sender]);
@@ -392,7 +397,7 @@ contract TestGroup is IGroup {
      * Set the internal clock of the TestGroup
      * @param _time uint UNIX time value to set TestGroup's internal clock
      */
-    function setTime(uint _time) public onlyPrimary {
+    function setTime(uint _time) public {
         timer.setCurrent(_time);
     }
 
@@ -401,7 +406,7 @@ contract TestGroup is IGroup {
      * Get the TestGroup's current internal clock value
      * @return current uint the TestGroup's current internal time
      */
-    function getTime() public view onlyPrimary returns (uint current) {
+    function getTime() public view returns (uint current) {
         current = timer.getCurrent();
     }
 
@@ -410,7 +415,7 @@ contract TestGroup is IGroup {
      * Increment the TestGroup's internal clock by _days days
      * @param _days uint number of days to increment
      */
-    function passDays(uint _days) public onlyPrimary {
+    function passDays(uint _days) public {
         timer.incrementDays(_days);
     }
 }

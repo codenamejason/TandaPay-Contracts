@@ -67,33 +67,13 @@ contract TestService is ITandaPayService {
 
     function loan(address _group) public isAdmin {}
 
-    /**
-     * @dev TESTSERVICE Function
-     * Set the internal clock of a TestGroup
-     * @param _group address of the TestGroup being time-tested
-     * @param _time uint the UNIX time to set the internal clock to
-     */
-    function setTestClock(address _group, uint _time) public isAdmin {
-        TestGroup(_group).setTime(_time);
-    }
-
-    /**
-     * @dev TESTSERVICE Function
-     * Increment the internal clock by _days days
-     * @param _group address of the TestGroup being time-tested
-     * @param _days uint the number of days to increment the internal clock
-     */
-     function passDaysTestClock(address _group, uint _days) public isAdmin {
-        TestGroup(_group).passDays(_days);
-     }
-
     /// VIEW ///
 
     /**
      * Return the number of deployed Groups
      * @return count uint Group index
      */
-    function getCount() public view returns (uint count) {
+    function getCount() public view  returns (uint count) {
         count = groupCount.current();
     }
 
@@ -104,15 +84,5 @@ contract TestService is ITandaPayService {
      */
     function groupAddress(uint _index) public view returns (address group) {
         group = groups[_index];
-    }
-
-    /**
-     * @dev TESTSERVICE Function
-     * Get the current internal clock of a TestGroup
-     * @param _group address of the group to query
-     * @return time uint UNIX internal time of TestGroup
-     */
-    function getTestClock(address _group) public view returns (uint time) {
-        time = TestGroup(_group).getTime();
     }
 }
