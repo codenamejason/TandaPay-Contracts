@@ -5,10 +5,9 @@ import 'openzeppelin-solidity/contracts/drafts/Counters.sol';
 
 /**
  * @author blOX Consulting LLC.
- * Date: 6.17.19
+ * Date: 7.26.19
  * Interface for main TandaPay service
  * Factory contract for groups
- * CRON/ Admin functionality
  **/
 contract ITandaPayService {
 
@@ -21,7 +20,6 @@ contract ITandaPayService {
     event SecretaryRevoked(address _revoked, address _group);
     event SecretaryInstalled(address _group);
     event Remitted(address _group);
-    event Loaned(address _group);
 
     ///MAPPING///
     mapping(address => bool) administrators;
@@ -29,14 +27,10 @@ contract ITandaPayService {
     mapping(uint => address) groups;
 
     ///STRUCTS///
-    struct Claim {
-        address policyholder;
-        claimState state;
-    }
     
     struct Period {
         Counters.Counter claimIndex;
-        mapping(uint8 => Claim) claims;
+        mapping(uint8 => address) claims;
         mapping(address => uint8) openedClaim;
     }
 
@@ -46,14 +40,13 @@ contract ITandaPayService {
     
     ///ENUMERATIONS///
     enum periodState {LOBBY, PRE, ACTIVE, POST}
-    enum claimState {REJECTED, OPEN, ACCEPTED}
 
     ///INTEGERS///
     uint8 constant MIN_PREMIUM = 5;
     uint8 constant MAX_PREMIUM = 50;
 
     ///MODIFIERS///
-     modifier isAdmin() {
+     modifier onlyAdmin() {
         require(administrators[msg.sender], "Address is not a TandaPay Administrator!");
         _;
     }
@@ -120,11 +113,12 @@ contract ITandaPayService {
 
     /**
      * @dev modifier onlyAdmin
+     * @dev require sufficienct balance
      * Extend a loan, in Dai, to a Tanda Group
      * @param _group the group being given the loan
-     * @return the total loan amount
-     * @dev require sufficienct balance
+     * @param _loan the value in Dai being transferred to the Group contract
+     * @param _months the length, in months (periods), the Group has to repay
      */
-    function loan(address _group) public;
+    function loan(address _group, uint _loan, uint _months) public;
 
 }

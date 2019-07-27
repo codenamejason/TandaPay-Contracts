@@ -42,7 +42,7 @@ module.exports = {
 
   compilers: {
     solc: {
-      verion: "0.5.9",
+      verion: "0.5.10",
       settings: {
         optimizer: {
           enabled: true,

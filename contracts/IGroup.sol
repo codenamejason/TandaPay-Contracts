@@ -16,7 +16,8 @@ contract IGroup is Secondary {
     using Counters for Counters.Counter;
     using SafeMath for uint256;
     
-    ///EVENTS///
+    ///EVENTS///(
+    event Loaned();
     event PolicyholderAdded(address _policyholder);
     event PolicyholderRemoved(address _policyholder);
     event SubgroupChange(address _policyholder, uint8 _oldSubgroup);
@@ -45,42 +46,40 @@ contract IGroup is Secondary {
     Counters.Counter groupSize;
     Counters.Counter periodIndex;
     Counters.Counter participantIndex;
+    Counters.Counter subgroupIndex;
     
     ///ADDRESSES///
     address public secretary;
 
     ///ENUMERATIONS///
     enum periodState {LOBBY, PRE, ACTIVE, POST}
-    enum claimState {REJECTED, OPEN, ACCEPTED}
 
     ///INTEGERS///
     uint8 premium;
     uint8 constant DEFECTION_THRESHOLD = 2;
 
     ///STRUCTS///
-    struct Claim {
-        address policyholder;
-        claimState state;
-    }
     
     struct Period {
         Counters.Counter claimIndex;
-        mapping(uint8 => Claim) claims;
-        mapping(address => uint8) openedClaim;
+        mapping(uint8 => address) claims;
+        mapping(address => uint8) hasClaim;
     }
 
     struct Loan {
         uint months;
-        uint deficit;
+        uint debt;
     }
 
+    Loan loan;
+
     ///MODIFIERS///
-    modifier isSecretary() {
+    modifier onlySecretary() {
         require(secretary == msg.sender, "Address is not this Group's Secretary!");
         _;
     }
     
-    modifier isPolicyholder() {
+    modifier onlyPolicyholder() {
         require(policyholders[msg.sender] != 0, "Address is not a Policyholder in this Group!");
         _;
     }
@@ -102,7 +101,38 @@ contract IGroup is Secondary {
         _;
     }
 
+    modifier lockable() {
+        bool lock = true;
+        for (uint i = 0; i < subgroupIndex.current(); i++) {
+            if (subgroupCounts[uint8(i)].current() < 4 || subgroupCounts[uint8(i)].current() > 7)
+                lock = false;
+        }
+        require(lock, "Invalid subgroup configuration!");
+        require(groupSize.current() >= 50, "Insufficient size to begin pre-period!");
+        require(locks[uint(periodState.POST)] <= now, "Group is already in an escrow cycle!");
+        if (loan.months == 0)
+            require(loan.debt == 0, "Group is bankrupt and cannot be locked!");
+        _;
+    }
+
     ///FUNCTIONS///
+
+    /**
+     * @dev onlyPrimary
+     * @dev must fail isLoaned()
+     * @dev modifier correctPeriod(periodState.LOBBY)
+     * Lend Group Dai from TandaPayService
+     * @param _months uint the number of months this group has to repay a loan
+     * @param _debt uint the number of Dai loaned to this group
+     */
+    function addLoan(uint _months, uint _debt) public;
+
+    /**
+     * @dev view only
+     * Determine whether or not a Group is currently the beneficiary of a loan
+     */
+    function isLoaned() public view returns (bool);
+
     /**
      * @dev modifier isSecretary
      * @dev modifier correctPeriod(periodState.LOBBY)
@@ -114,7 +144,7 @@ contract IGroup is Secondary {
     
     /**
      * @dev modifier isSecretary
-     * @dev modifier correctPeriod(periodState.PRE)
+     * @dev modifier correctPeriod(periodState.LOBBY)
      * Remove a Policyholder from the group
      * @param _from the address of the Policyholder being removed
      **/
@@ -122,7 +152,7 @@ contract IGroup is Secondary {
     
     /**
      * @dev modifier isSecretary
-     * @dev modifier correctPeriod(periodState.PRE)
+     * @dev modifier correctPeriod(periodState.LOBBY)
      * Change the subgroup of a given policyholder
      * @param _policyholder the address of the policyholder switching groups
      * @param _subgroup the subgroup being switched to
@@ -131,7 +161,7 @@ contract IGroup is Secondary {
 
     /**
      * @dev modifier isSecretary
-     * @dev ensure groupSize >= 50, group is not in escrow
+     * @dev ensure groupSize >= 50, group is not in escrow, subgroup counts are okay
      * Lock all funds in the Insurance smart contract
      */
     function lock() public;
@@ -144,27 +174,11 @@ contract IGroup is Secondary {
     function payPremium() public;
     
     /**
-     * @dev modifier activePolicyholder
-     * @dev modifier correctPeriod(periodState.ACTIVE)
-     * Policyholder opens a new claim
-     **/
-    function openClaim() public;
-    
-    /**
-     * @dev modifier isSecretary 
-     * @dev modifier correctPeriod(periodState.POST)
-     * Secretary rejects a claim
-     * @param _claimant the address of the Policyholder who opened the claim
-     **/
-    function rejectClaim(address _claimant) public;
-    
-    /**
      * @dev modifier isSecretary
-     * @dev modifier correctPeriod(periodState.POST)
-     * Secretary approves a Policyholder's Claim
-     * @param _claimant the address of the Policyholder who opened the claim
+     * @dev modifier correctPeriod(periodState.ACTIVE)
+     * Secretary whitelists a new claim
      **/
-    function approveClaim(address _claimant) public;
+    function submitClaim(address _policyholder) public;
     
     /**
      * @dev modifier activePolicyholder
@@ -173,6 +187,20 @@ contract IGroup is Secondary {
      **/
     function defect() public;
     
+    /**
+     * @dev modifier onlyPrimary
+     * Determine whether a group is ready to be remitted from escrow
+     * @return true if the group is ready to remit, and false otherwise
+     **/
+    function remittable() public view returns (bool);
+    
+    /**
+     * @dev modifier onlyPrimary
+     * @dev must pass remittable
+     * Remit this group's Insurance Escrow
+     **/
+    function remit() public;
+
     /**
      * @dev modifier onlyPrimary
      * Give secretary rights to the TandaPayService contract
@@ -186,65 +214,4 @@ contract IGroup is Secondary {
      * @param _secretary the address being authorized as Secretary in this Group contract
      **/
     function install(address _secretary) public;
-    
-    /**
-     * @dev modifier onlyPrimary
-     * Determine whether a group is ready to be remitted from escrow
-     * @return true if the group is ready to remit, and false otherwise
-     **/
-    function remittable() public view returns (bool);
-    
-    /**
-     * @dev modifier onlyPrimary
-     * @dev modifier unlocked
-     * Remit this group's Insurance Escrow
-     **/
-    function remit() public;
-    
-    /**
-     * @dev only internal
-     * Remove all claims made from subgroups with intolerable defection rates
-     **/
-    function stripToxicSubgroups() internal;
-    
-    /**
-     * @dev only internal
-     * Pay proportionate share of Dai to all Claimants
-     **/
-    function payClaims() internal;
-    
-    /**
-     * @dev only internal
-     * Attempt to pay back refunds to remaining policyholders
-     **/
-    function payRefunds() internal;
-    
-    /**
-     * @dev internal only
-     * Remove a claim made by a policyholder
-     * Rearranges the Period's Claims to reflect change
-     * @param _index the index of the claim being removed
-     **/
-    function removeClaim(uint8 _index) internal;
-    
-    /**
-     * @dev internal only
-     * Remove a participant
-     * Rearranges activeParticipants to reflect change
-     * @param _participant the participant being removed from the Group
-     **/
-    function removeParticipant(address _participant) internal;
-    
-    /**
-     * @dev only internal
-     * @dev modifier unlocked
-     * Reset all timelocks to 0 and increment periodIndex
-     **/
-    function unlock() internal;
-
-    /**
-     * @dev view only
-     * Determine whether or not a Group is currently paying back a Loan
-     */
-    function isLoaned() public view returns (bool);
 }

@@ -5,7 +5,7 @@ import './Group.sol';
 
 /**
  * @author blOX Consulting LLC.
- * Date: 6.20.19
+ * Date: 7.26.19
  * Implementation of main TandaPay service
  **/
 contract TandaPayService is ITandaPayService {
@@ -16,19 +16,19 @@ contract TandaPayService is ITandaPayService {
         emit AdminApproved(msg.sender);
     }
 
-    function addAdmin(address _to) public isAdmin() {
+    function addAdmin(address _to) public onlyAdmin {
         require(!administrators[_to], "Address is already an Administrator!");
         administrators[_to] = true;
         emit AdminApproved(_to);
     }
     
-    function removeAdmin(address _from) public isAdmin() {
+    function removeAdmin(address _from) public onlyAdmin {
         require(administrators[_from], "Address is not an Administrator!");
         delete administrators[_from];
         emit AdminRevoked(_from);
     }
     
-    function createGroup(address _to, uint8 _premium) public isAdmin() returns (address _group) {
+    function createGroup(address _to, uint8 _premium) public onlyAdmin returns (address _group) {
         require(groups[secretaries[_to]] == address(0), "Address is already a Secretary!");
         require(MIN_PREMIUM < _premium && _premium <= MAX_PREMIUM, "Premium is out of bounds! (Too high or low)");
         Group group = new Group(_to, _premium, address(Dai));
@@ -39,7 +39,7 @@ contract TandaPayService is ITandaPayService {
         emit GroupCreated(_group);
     }
     
-    function removeSecretary(address _from) public isAdmin {
+    function removeSecretary(address _from) public onlyAdmin {
         address groupAddress = groups[secretaries[_from]];
         require(groupAddress != address(0), "Address is not a Secretary!");
         Group(groupAddress).overthrow();
@@ -47,23 +47,27 @@ contract TandaPayService is ITandaPayService {
         emit SecretaryRevoked(_from, groupAddress);
     }
     
-    function installSecretary(address _secretary, address _group) public isAdmin() {
+    function installSecretary(address _secretary, address _group) public onlyAdmin {
         require(Group(_group).secretary() == address(this), "This Group is not owned by the TandaPayService!");
         Group(_group).install(_secretary);
         emit SecretaryInstalled(_secretary);
     }
     
-    function processAll() public isAdmin {
+    function processAll() public onlyAdmin {
         for(uint i = 0; i < groupCount.current(); i++) {
             if(Group(groups[i]).remittable())
                 remitGroup(groups[i]);
         }
     }
     
-    function remitGroup(address _group) public isAdmin {
+    function remitGroup(address _group) public onlyAdmin {
         Group(_group).remit();
         emit Remitted(_group);
     }
 
-    function loan(address _group) public isAdmin {}
+    function loan(address _group, uint _loan, uint _length) public onlyAdmin {
+        require(Dai.balanceOf(address(this)) >= _loan, "Insufficient balance to loan!");
+        Dai.transfer(_group, _loan);
+        Group(_group).addLoan(_loan, _length);
+    }
 }

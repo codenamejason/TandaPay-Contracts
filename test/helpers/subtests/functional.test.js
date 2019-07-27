@@ -32,6 +32,7 @@ module.exports = async (accounts) => {
         });
         describe('TandaPayService Functionality Check', async () => {
             describe('addAdmin() Functionality Check', async () => {
+                before()
                 it('New account cannot access createGroup() before being added', async () => {
                     await expectRevert(
                         GroupDriver.lock(Group, admin),
@@ -46,6 +47,9 @@ module.exports = async (accounts) => {
                 });
             });
             describe('removeAdmin() Funuctionality Check', async () => {
+                describe('removeAdmin() Restrictions', async () => {
+
+                })
                 it('Removed can access createGroup() before being removed', async () => {
 
                 });

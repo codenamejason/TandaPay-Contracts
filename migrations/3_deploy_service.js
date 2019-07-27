@@ -12,11 +12,11 @@ const TestService = artifacts.require("./TestService");
 module.exports = async (deployer, network, accounts) => {
     if(network == 'development') {
         let address = (await DaiContract.deployed()).address;
-        //await deployer.deploy(TandaPayService, address);
-        await deployer.deploy(TestService, address);
-    } else if (network == 'kovan') 
-       await deployer.deploy(TestService, process.env.DAI_KOVAN, {overwrite: false}); 
-    else if (network == 'ropsten') 
+        //await deployer.deploy(TestService, address);
+        await deployer.deploy(TandaPayService, address);
+    } else if (network == 'kovan') {
+        await deployer.deploy(TestService, process.env.DAI_KOVAN, {overwrite: false}); 
+    }  else if (network == 'ropsten')
         await deployer.deploy(TestService, process.env.DAI_ROPSTEN);
     else if (network == 'rinkeby')
         await deployer.deploy(TestService, process.env.DAI_RINKEBY);
