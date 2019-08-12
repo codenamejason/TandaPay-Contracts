@@ -1,389 +1,386 @@
 pragma solidity >= 0.4.0 < 0.7.0;
 
 import './IGroup.sol';
+import 'openzeppelin-solidity/contracts/ownership/Secondary.sol';
 
 /**
- * @author blOX Consulting LLC.
- * Date: 7.26.19
- * TandaPay Group child contract
- **/
-contract Group is IGroup {
+ * @author blOX Consulting LLC
+ * Date: 08.11.2019
+ * Implementation of Group
+ */
+contract Group is IGroup, Secondary {
     
-    constructor(address _secretary, uint8 _premium, address _dai) public {
-        secretary = _secretary;
-        premium = _premium;
+    ///MODIFIERS///
+
+    /**
+     * Determine whether the liquidity contract is accessable by the Secretary
+     */
+    modifier liquidityLock() {
+        uint range = block.timestamp - origin;
+        uint bound = range.mod(30);
+        require(origin == 0 || bound <= 6 days, "Liquidity Stake is currently Locked!");
+        _;
+    }
+
+    /**
+     * Modifier to restrict functionality to Lobby subperiod state
+     */
+    modifier onlyLobby() {
+        require((next == false), "Group is locked in the 'started' state!");
+        uint nextPeriod = currentPeriod.add(1);
+        require((periodLocks[nextPeriod][0] == 0), "Group must finish the current period before entering Lobby!");
+        _;
+    }
+
+    /**
+     * Determine whether a given action can currently be performed
+     * @param _period uint period index being queried
+     * @param _state subperiod restriction being applied
+     */
+    modifier allowed(uint _period, subperiod _state) {
+        require(getSubperiod(_period) == uint(_state), "Incorrect subperiod for this action!");
+        _;
+    }
+
+    /**
+     * Restrict access to Secretary role
+     */
+    modifier onlySecretary() {
+        require(secretary == msg.sender, "Address is not this Group's Secretary!");
+        _;
+    }
+
+    /**
+     * Restrict access to Policyholder role
+     */
+    modifier onlyPolicyholder() {
+        require(policyholders[msg.sender] != 0, "Address is not a Policyholder in this Group!");
+        _;
+    }
+
+    ///CONSTRUCTOR///
+
+    /**
+     * Construct a new Test Group
+     * @param _dai the address of the Dai ERC20 contract
+     * @param _secretary the address of the secretary of this group
+     *     @dev _secretary is minter / admin in Test Group
+     * @param _volume the number of expected claims
+     * @param _payout the number of Dai tokens to pay out per claim
+     */
+    constructor(address _dai, address _secretary, uint _volume, uint _payout) public {
+        currentPeriod = 0;
+        uint total = _volume.mul(_payout);
+        Liquidity = new LiquidityLock(total.mul(2), _secretary, _dai);
         Dai = IERC20(_dai);
+        volume = _volume;
+        payout = _payout;
     }
-    
-    function addPolicyholder(address _to, uint8 _subgroup) public onlySecretary correctPeriod(periodState.LOBBY) {
+
+    ///INTERFACE MUTABLE IMPLEMENTATIONS///
+
+    function startGroup() public onlySecretary onlyLobby {
+        currentPeriod = currentPeriod.add(1);
+        origin = block.timestamp.sub(3 days);
+        setLocks(currentPeriod);
+        next = true;
+        emit Started();
+    }
+
+    function stopGroup() public onlySecretary {
+        uint periodOrigin = periodLocks[currentPeriod][0];
+        uint range = block.timestamp.sub(periodOrigin);
+        require(range > 3 days && range <= 30 days, "Cannot stop group while transitioning periods!");
+        next = false;
+        uint nextPeriod = currentPeriod.add(1);
+        for(uint i = 0; i < SUBPERIOD_DAYS.length; i++)
+            periodLocks[nextPeriod][i] = 0;
+        emit Stopped();
+    }
+
+    function endPeriod(uint _period) public onlyPrimary {
+        stripToxicSubgroups(_period);
+        payClaims(_period);
+        payRefunds(_period);
+        if(next != false) {
+            currentPeriod = currentPeriod.add(1);
+            setLocks(currentPeriod);
+        } else {
+            origin = 0;
+        }
+        emit PeriodEnded(_period);
+        loanMonths = loanMonths.sub(1);
+    }
+
+    function withdraw() public onlySecretary liquidityLock {
+        uint balance = Liquidity.withdraw();
+        emit LiquidityWithdrawn(balance);
+    }
+
+    function makeLoan(uint _months) public onlyPrimary onlyLobby {
+        require(!loaned(), "Cannot have two loans simultaneously!");
+        loanDebt = (volume.mul(payout)).mul(2);
+        loanMonths = _months;
+        emit Loaned(loanDebt, loanMonths);
+    }
+
+    function addPolicyholder(address _to, uint _subgroup) public onlySecretary onlyLobby {
         require(policyholders[_to] == 0, "Policyholder already exists!");
-        require(subgroupCounts[_subgroup].current() < 7, "Subgroup is full!");
-        require(_subgroup <= subgroupIndex.current() + 1, "Incorrect subgroup serialization!");
-        if (_subgroup == subgroupIndex.current())
-            subgroupIndex.increment();
+        require(subgroupCounts[_subgroup] < 7, "Subgroup is full!");
+        require(_subgroup > subgroupIndex.add(1), "Incorrect subgroup syntax!");
+        
         policyholders[_to] = _subgroup;
-        subgroupCounts[_subgroup].increment();
-        groupSize.increment();
+        subgroupCounts[_subgroup] = subgroupCounts[_subgroup].add(1);
+        groupSize = groupSize.add(1);
         emit PolicyholderAdded(_to);
+        if(_subgroup == subgroupIndex.add(1))
+            subgroupIndex = subgroupIndex.add(1);
     }
     
-    function removePolicyholder(address _from) public onlySecretary correctPeriod(periodState.LOBBY) {
+    function removePolicyholder(address _from) public onlySecretary onlyLobby {
         require(policyholders[_from] != 0, "Policyholder does not exist!");
         
-        subgroupCounts[policyholders[_from]].decrement();
+        subgroupCounts[policyholders[_from]] = subgroupCounts[policyholders[_from]].sub(1);
         policyholders[_from] = 0;
-        groupSize.decrement();
+        groupSize = groupSize.sub(1);
         emit PolicyholderRemoved(_from);
     }
     
-    function changeSubgroup(address _policyholder, uint8 _subgroup) public onlySecretary correctPeriod(periodState.LOBBY) {
-        require(subgroupCounts[_subgroup].current() < 7, "Subgroup is full!");
+    function changeSubgroup(address _policyholder, uint _subgroup) public onlySecretary onlyLobby {
+        require(subgroupCounts[_subgroup] < 7, "Subgroup is full!");
+        require(_subgroup > subgroupIndex.add(1), "Incorrect subgroup syntax!");
         
-        subgroupCounts[policyholders[_policyholder]].decrement();
-        subgroupCounts[_subgroup].increment();
-        uint8 old = policyholders[_policyholder];
+        subgroupCounts[policyholders[_policyholder]] = subgroupCounts[policyholders[_policyholder]].sub(1);
+        subgroupCounts[_subgroup] = subgroupCounts[_subgroup].add(1);
+        uint old = policyholders[_policyholder];
         policyholders[_policyholder] = _subgroup;
         emit SubgroupChange(_policyholder, old);
+        if(_subgroup == subgroupIndex.add(1))
+            subgroupIndex = subgroupIndex.add(1);
     }
     
-    function lock() public onlySecretary lockable {
-        if (isLoaned())
-            payLoan();
-        locks[uint(periodState.LOBBY)] = now;
-        locks[uint(periodState.PRE)] = now.add(3 days);
-        locks[uint(periodState.ACTIVE)] = now.add(27 days);
-        locks[uint(periodState.POST)] = now.add(30 days);
-        emit Locked();
-    }
-    
-    function payPremium() public onlyPolicyholder correctPeriod(periodState.PRE) {
-        require(participantToIndex[msg.sender] == 0, "Address has already paid premium as a Policyholder!");
-        uint subgroup = subgroupCounts[policyholders[msg.sender]].current();
-        uint overpayment = uint256(premium).div(subgroup);
-        uint loanPayment = (loan.debt.div(loan.months)).div(groupSize.current());
-        uint total = uint256(premium).add(overpayment).add(loanPayment);
-        require(Dai.allowance(msg.sender, address(this)) >= total, "Insufficient Dai allowance for Tanda Insurance!");
+    function makePayment(uint _period) public onlyPolicyholder allowed(_period, subperiod.PRE) {
+        require(participantToIndex[_period][msg.sender] == 0, "Address has already paid premium as a Policyholder!");
+        uint subgroup = subgroupCounts[policyholders[msg.sender]];
+        uint premiumPayment = calculatePremium();
+        uint overPayment = calculateOverpayment(subgroup, premiumPayment);
+        uint loanPayment = calculateLoanPayment();
+        uint total = premiumPayment.add(overPayment).add(loanPayment);
+        require(Dai.allowance(msg.sender, address(this)) >= total, "Insufficient Dai allowance for Payment!");
 
-        Dai.transferFrom(msg.sender, address(this), total);
-        participantIndex.increment();
-        activeParticipants[uint8(participantIndex.current())] = msg.sender;
-        participantToIndex[msg.sender] = uint8(participantIndex.current());
-        emit PremiumPaid(msg.sender);
+        Dai.transferFrom(msg.sender, address(this), premiumPayment.add(overPayment));
+        Dai.transferFrom(msg.sender, primary(), loanPayment);
+        participantIndices[_period] = participantIndices[_period].add(1);
+        uint index = participantIndices[_period];
+        participants[_period][index] = msg.sender;
+        participantToIndex[_period][msg.sender] = index;
+        emit Paid(msg.sender, _period);
+        claimPools[_period] = claimPools[_period].add(premiumPayment.add(overPayment));
     }
-    
-    function submitClaim(address _policyholder) public onlySecretary correctPeriod(periodState.ACTIVE) {
+
+    function submitClaim(uint _period, address _claimant) public onlySecretary allowed(_period, subperiod.ACTIVE) {
+        require(claimants[_period][_claimant] == 0, "Claimant already has an existing Claim!");
         
+        claimIndices[_period] = claimIndices[_period].add(1);
+        uint index = claimIndices[_period];
+        claims[_period][index] = _claimant;
+        claimants[_period][_claimant] = index;
+        emit ClaimSubmitted(_claimant, _period);
     }
 
-    function defect() public activePolicyholder() correctPeriod(periodState.POST) {
-        Period storage period = periods[uint16(periodIndex.current())];
-        if(period.hasClaim[msg.sender] != 0)
-            removeClaim(period.hasClaim[msg.sender]);
-        uint8 subgroup = policyholders[msg.sender];
-        Counters.Counter storage subgroupDefectionCount = defectionCount[subgroup];
-        subgroupDefectionCount.increment();
-        if(subgroupDefectionCount.current() >= DEFECTION_THRESHOLD)
-            toxicSubgroup[subgroup] = true;
-        Dai.transfer(msg.sender, premium);
-        removeParticipant(msg.sender);
-        emit Defected(msg.sender);
+    function defect(uint _period) public onlyPolicyholder allowed(_period, subperiod.POST) {
+        uint participantIndex = participantToIndex[_period][msg.sender];
+        require(participantIndex != 0, "Only premium-paid policyholders may defect!");
+
+        uint claimIndex = claimants[_period][msg.sender];
+        if(claimIndex != 0)
+            removeClaim(_period, claimIndex);
+        uint subgroup = policyholders[msg.sender];
+        defectionCounts[_period][subgroup] = defectionCounts[_period][subgroup].add(1);
+        if(defectionCounts[_period][subgroup] >= DEFECTION_THRESHOLD)
+            toxicSubgroups[_period][subgroup] = true;
+        Dai.transfer(msg.sender, calculatePremium());
+        removeParticipant(_period, participantIndex);
+        emit Defected(msg.sender, _period);
     }
-    
-    function overthrow() public onlyPrimary {
-        emit Overthrown(secretary);
-        secretary = primary();
+
+    ///INTERFACE VIEWABLE FUNCTIONS///
+
+    function getSecretary() public view returns (address) {
+        return secretary;
     }
-    
-    function install(address _secretary) public onlyPrimary {
-        require(secretary == primary(), "This contract is not owned by the TandaPayService!");
-        secretary = _secretary;
-        emit Installed(secretary);
+
+    function getLiquidity() public view returns (address) {
+        return address(Liquidity);
     }
-    
-    function remittable() public view returns (bool) {
-        uint timelock = locks[uint(periodState.POST)];
-        return(timelock != 0 && timelock < now);
+
+    function groupPremium() public view returns (uint) {
+        return (payout.mul(volume));
     }
-    
-    function remit() public onlyPrimary unlocked {
-        stripToxicSubgroups();
-        payClaims();
-        payRefunds();
-        unlock();
+
+    function activePeriod() public view returns (uint) {
+        uint postLock = periodLocks[currentPeriod][2];
+        if(block.timestamp >= postLock && postLock != 0)
+            return currentPeriod.add(1);
+        else
+            return currentPeriod;
     }
-    
-    /**
-     * @dev only internal
-     * Remove all claims made from subgroups with intolerable defection rates
-     **/
-    function stripToxicSubgroups() internal {
-        Period storage period = periods[uint16(periodIndex.current())];
-        for(uint8 i = 1; i <= period.claimIndex.current(); i++) {
-            address claim = period.claims[i];
-            uint8 subgroup = policyholders[claim];
-            if(toxicSubgroup[subgroup]) {
-                emit ToxicClaimStripped(claim);
-                removeClaim(i);
-                i--;
-                period.claimIndex.decrement();
+
+    function getSubperiod(uint _period) public view returns (uint currentSubperiod) {
+        uint preLock = periodLocks[_period][0];
+        if (preLock == 0 || preLock > block.timestamp)
+            return uint(subperiod.LOBBY);
+        else {
+            for (uint i = 0; i < SUBPERIOD_DAYS.length.sub(1); i++) {
+                if(periodLocks[_period][i.add(1)] > block.timestamp)
+                    return (i.add(1));
             }
+            return uint(subperiod.ENDED);
         }
     }
 
-    /**
-     * @dev only internal
-     * Pay proportionate share of Dai to all Claimants
-     **/
-    function payClaims() internal {
-        Period storage period = periods[uint16(periodIndex.current())];
-        uint8 claimIndex = uint8(period.claimIndex.current());
-        uint payout = getPayout();
-        for(uint8 i = 1; i <= claimIndex; i++) {
-            address claimant = period.claims[i];
-            Dai.transfer(claimant, payout);
-            removeParticipant(claimant);
-        }
+    function loaned() public view returns (bool) {
+        return (loanDebt == 0 && loanMonths == 0);
+    }    
+
+    function calculatePayment(address _query) public view returns (uint) {
+        uint premium = calculatePremium();
+        uint overpayment = calculateOverpayment(policyholders[_query], premium);
+        uint loan = calculateLoanPayment();
+        return (premium.add(overpayment).add(loan));
     }
 
-    /**
-     * @dev only internal
-     * Attempt to pay back refunds to remaining policyholders
-     **/
-    function payRefunds() internal {
-        if(Dai.balanceOf(address(this)) > 0) {
-            uint8 participantsLength = uint8(participantIndex.current());
-            uint share = Dai.balanceOf(address(this)).div(participantsLength);
-            for(uint8 i = 1; i <= participantsLength; i++) {
-                address participant = activeParticipants[i];
-                Dai.transfer(participant, share);
-                delete activeParticipants[i];
-                delete participantToIndex[participant];
-                participantIndex.decrement();
-            }
-        }
-    }
-    
-    /**
-     * @dev internal only
-     * Remove a claim made by a policyholder
-     * Rearranges the Period's Claims to reflect change
-     * @param _index the index of the claim being removed
-     **/
-    function removeClaim(uint8 _index) internal {
-        Period storage period = periods[uint16(periodIndex.current())];
-        uint8 claimIndex = uint8(period.claimIndex.current());
-        address claimant = period.claims[claimIndex];
-        period.claims[_index] = period.claims[claimIndex];
-        address newClaimant = period.claims[claimIndex];
-        delete period.claims[claimIndex];
-        delete period.hasClaim[claimant];
-        period.claimIndex.decrement();
-        period.hasClaim[newClaimant] = claimIndex;
-    }
-    
-    /**
-     * @dev internal only
-     * Remove a participant
-     * Rearranges activeParticipants to reflect change
-     * @param _participant the participant being removed from the Group
-     **/
-    function removeParticipant(address _participant) internal {
-        uint8 index = participantToIndex[_participant];
-        uint8 maxIndex = uint8(participantIndex.current());
-        activeParticipants[index] = activeParticipants[maxIndex];
-        delete activeParticipants[maxIndex];
-        delete participantToIndex[_participant];
-        participantToIndex[activeParticipants[index]] = index;
-        participantIndex.decrement();
-    }
-    
-    /**
-     * @dev only internal
-     * @dev modifier unlocked
-     * Reset all timelocks to 0 and increment periodIndex
-     **/
-    function unlock() internal unlocked {
-        delete locks[uint(periodState.LOBBY)];
-        delete locks[uint(periodState.PRE)];
-        delete locks[uint(periodState.ACTIVE)];
-        delete locks[uint(periodState.POST)];
-        periodIndex.increment();
+    function calculatePremium() public view returns (uint) {
+        uint total = payout.mul(volume);
+        return total.div(groupSize);
     }
 
-    function addLoan(uint _months, uint _debt) public {
-        require(!isLoaned(), "Group has already recieved a loan!");
-        loan.months = _months;
-        loan.debt = _debt;
-        emit Loaned();
+    function calculateOverpayment(uint _subgroup, uint _premium) public view returns (uint) {
+        uint subgroupSize = subgroupCounts[_subgroup];
+        return (_premium.div(subgroupSize.sub(1)));
     }
 
-    /**
-     * @dev internal only
-     * Pay the monthly loan before locking
-     */
-    function payLoan() internal {
-        require(isLoaned(), "Cannot pay loan when the Group is not in debt!");
-        uint loanDebt = loan.debt.div(loan.months);
-        require(Dai.balanceOf(address(this)) >= loanDebt, "Group is bankrupt and cannot pay loan!");
-        Dai.transfer(primary(), loanDebt);
-        loan.debt = loan.debt.sub(loanDebt);
-        loan.months = loan.months.sub(1);
+    function calculateLoanPayment() public view returns (uint) {
+        return loanDebt.sub((loanMonths.add(1)).mul(groupSize));
     }
 
-    /// VIEW FUNCTIONS ///
-    
-    function isLoaned() public view returns (bool) {
-        return (loan.debt > 0);
-    }
-
-    /**
-     * Determine the number of Policyholder addresses a Secretary has added to their Group
-     * @return uint16 the number of whitelisted Policyholder addresses
-     */
-    function size() public view returns (uint16) {
-        return uint16(groupSize.current());
-    }
-    
-    /**
-     * Determine the full premium payment that must be made to the Group escrow
-     * @return _premium uint8 value in Dai that a policyholder must pay
-     */
-    function getPremium() public view onlyPolicyholder returns (uint8 _premium) {
-        uint subgroup = subgroupCounts[policyholders[msg.sender]].current();
-        uint overpayment = uint256(premium).div(subgroup);
-        uint total = uint256(premium).add(overpayment);
-        _premium = uint8(total);
-    }
-
-    /**
-     * Determine the number of members within a given subgroup
-     * @param _subgroup uint8 index to be queried in mapping subgroupCounts
-     * @return uint8 number of Policyholders in the specified subgroup
-     */
-    function getSubgroupCount(uint8 _subgroup) public view returns (uint8) {
-        return uint8(subgroupCounts[_subgroup].current());
-    }
-
-    /**
-     * Determine whether the address queried is a Premium-Paid Policyholder in this Group
-     * @return true if the address has Paid a Dai premium for the escrow in this Group this Period
-     */
-    function isActive(address _query) public view returns (bool) {
-        return (participantToIndex[_query] != 0);
-    }
-
-    /**
-     * Determine whether the address queried is a Policyholder in this Group
-     * return true if the address is a Policyholder, and false otherwise
-     */
-    function isPH(address _query) public view returns (bool) {
-        return (policyholders[_query] != 0);
-    }
-
-    /**
-     * Determine the UNIX timestamps that dictate the Group' s escrow timelocks
-     * @return pre uint UNIX time when the PRE period begins
-     * @return active uint UNIX time when the PRE period ends and the ACTIVE period begins
-     * @return post uint UNIX time when the ACTIVE period ends and the POST period begins
-     * @return unlockLobby uint UNIX time when the POST period ends and the TandaPayService can remit the Group's escrow
-     */
-    function getLocks() public view returns (uint pre, uint active, uint post, uint unlockLobby) {
-        pre = locks[0];
-        active = locks[1];
-        post = locks[2];
-        unlockLobby = locks[3];
-    }
-
-    /**
-     * Determine how many policyholders have paid their premiums in the current period
-     * @return index uint8 index in mapping activeParticipants
-     */
-    function getParticipantIndex() public view returns (uint8 index) {
-        index = uint8(participantIndex.current());
-    }
-
-    /**
-     * Determine the associated information of a given Claim in the given Period
-     * @param _index uint8 index of Claim in mapping claims
-     * @return claimant address of Policyholder account that opened claim
-     */
-    function getClaim(uint8 _index) public view returns (address claimant) {
-        Period storage period = periods[uint16(periodIndex.current())];
-        return period.claims[_index];
-    }
-
-    /**
-     * Determine the current Claim index of the current Period
-     * @return index uint8 current index in mapping claims
-     */
-    function getClaimIndex() public view returns (uint8 index) {
-        Period storage period = periods[uint16(periodIndex.current())];
-        index = uint8(period.claimIndex.current());
-    }
-
-    /**
-     * Determine the Claim associated with a given policyholder in the current Group
-     * @dev should be 0 if address has not opened a claim this period
-     * @param _query the address being used as a key to search for a Claim
-     * @return index uin8 index of Claim in mapping claims
-     */
-    function addressToClaim(address _query) public view returns (uint8 index) {
-        Period storage period = periods[uint16(periodIndex.current())];
-        index = period.hasClaim[_query];
-    }
-
-    /**
-     * Determine the current payout for a single claimant
-     * @dev counts all claims with state ACCEPTED and OPEN
-     * @return uint16 value of Dai that will be transferred to claimants
-     */
-    function getPayout() public view returns (uint16) {
-        uint index = getClaimIndex();
+    function calculateExpectedPayout(uint _period) public view returns (uint) {
+        uint pool = claimPools[_period];
+        uint index = claimIndices[_period];
         if(index == 0)
-            index = index.add(1);
-        uint maxPayout = uint256(premium).mul(25);
-        uint payout = Dai.balanceOf(address(this)).div(index);
-        if(payout > maxPayout)
-            payout = maxPayout;
-        return uint16(payout);
+            return 0;
+        uint share = pool.div(index);
+        if (share > payout)
+            share = payout;
+        return share;
     }
 
-    /**
-     * Determine the period number of this Group contract
-     * @dev should be 0 if lock() has never been called
-     * @return period uint16 period index 
-     */
-    function getPeriod() public view returns (uint16 period) {
-        return uint16(periodIndex.current());
-    }
+    ///INTERNAL FUNCTIONS///
 
     /**
-     * Determine the current periodState as an unsigned integer
-     * @dev [0, 1, 2, 3] :: [PRE, ACTIVE, POST, LOBBY]
-     * @return state uint8 integer representation of period state
+     * Set the locks for a given period based off the current block timestamp
+     * @param _period uint index of period being locked
      */
-    function uintGetPeriodState() public view returns (uint8 state) {
-        for(uint8 i = 0; i < 3; i++) {
-            if(locks[i] <= now && now < locks[i+1])
-                return (i);
+    function setLocks(uint _period) internal {
+        if(periodLocks[_period][0] == 0) {
+            uint periodOrigin = block.timestamp;
+            periodLocks[_period][0] = periodOrigin;
+            for(uint i = 0; i < SUBPERIOD_DAYS.length; i++) {
+                uint threshold = SUBPERIOD_DAYS[i].mul(1 days);
+                periodLocks[_period][i] = periodOrigin.add(threshold);
+            }
         }
-        return (3);
-    }
-
-    /**
-     * determine the current periodState as a periodState enumeration
-     * @return state periodState of Group
-     */
-    function getSubperiod() public view returns (periodState state) {
-        uint8 subperiod = uintGetPeriodState();
-        if(subperiod == 0) {
-            return periodState.PRE;
-        } else if(subperiod == 1) {
-            return periodState.ACTIVE;
-        } else if(subperiod == 2) {
-            return periodState.POST;
-        } else {
-            return periodState.LOBBY;
+        uint nextOrigin = periodLocks[_period][0].add(30 days);
+        uint nextPeriod = _period.add(1);
+        periodLocks[nextPeriod][0] = nextOrigin;
+        for(uint i = 0; i < SUBPERIOD_DAYS.length; i++) {
+            uint threshold = SUBPERIOD_DAYS[i].mul(1 days);
+            periodLocks[nextPeriod][i] = nextOrigin.add(threshold);
         }
     }
+
+    /**
+     * Remove any claims that were made within toxic subgroups
+     * @param _period uint index of period being remitted
+     */
+    function stripToxicSubgroups(uint _period) internal {
+        uint index = claimIndices[_period];
+        for(uint i = 1; i <= index; i++) {
+            address claimant = claims[_period][i];
+            uint subgroup = policyholders[claimant];
+            if(toxicSubgroups[_period][subgroup]) {
+                removeClaim(_period, i);
+                i.sub(1);
+                index = index.sub(1);
+                emit ClaimStripped(claimant, _period);
+            }
+        }
+    }
+
+    /**
+     * Pay out each claim according to the Dai pool
+     * @param _period uint index of period being remitted
+     */
+    function payClaims(uint _period) internal {
+        uint index = claimIndices[_period];
+        uint share = calculateExpectedPayout(_period);
+        for(uint i = 1; i <= index; i++) {
+            address claimant = claims[_period][i];
+            Dai.transfer(claimant, share);
+            claimPools[_period] = claimPools[_period].sub(share);
+            removeParticipant(_period, participantToIndex[_period][claimant]);
+            emit ClaimPaid(claimant, _period);
+        }
+    }
+    
+    /**
+     * Pay refunds to the remaining active policyholders according to the remaining Dai pool
+     * @param _period uint index of period being remitted
+     */
+    function payRefunds(uint _period) internal {
+        uint pool = claimPools[_period];
+        if(pool > 0) {
+            uint index = participantIndices[_period];
+            uint share = pool.div(index);
+            for(uint i = 1; i <= index; i++) {
+                address participant = participants[_period][i];
+                Dai.transfer(participant, share);
+                delete participants[_period][i];
+                delete participantToIndex[_period][participant];
+            }
+        }
+    }
+
+    /**
+     * Remove a claim from a period's claim list
+     * @param _period uint index of period being mutated
+     * @param _index uint index of claim being removed in claim list
+     */
+    function removeClaim(uint _period, uint _index) internal {
+        uint maxIndex = claimIndices[_period];
+        address oldClaimant = claims[_period][_index];
+        address newClaimant = claims[_period][maxIndex];
+        claims[_period][_index] = newClaimant;
+        claimants[_period][newClaimant] = _index;
+        claimIndices[_period] = claimIndices[_period].sub(1);
+        delete claims[_period][maxIndex];
+        delete claimants[_period][oldClaimant];
+    } 
+
+    /**
+     * Remove a participant from the active participant list
+     * @param _period uint index of period being mutated
+     * @param _index uint index of participant being ejected
+     */
+    function removeParticipant(uint _period, uint _index) internal {
+        uint maxIndex = participantIndices[_period];
+        address oldParticipant = participants[_period][_index];
+        address newParticipant = participants[_period][maxIndex];
+        participants[_period][_index] = newParticipant;
+        participantToIndex[_period][newParticipant] = _index;
+        participantIndices[_period] = participantIndices[_period].sub(1);
+        delete participants[_period][maxIndex];
+        delete participantToIndex[_period][oldParticipant]; 
+    }
+
 }
