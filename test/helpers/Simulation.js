@@ -1,7 +1,7 @@
 
 /**
  * @author blOX Consulting LLC
- * @date 08.13.2019
+ * @date 08.19.2019
  * Simulator Test ToolKit
  */
 
@@ -85,6 +85,46 @@ module.exports = {
         let value = web3.utils.toBN(_value);
         for(let i = 0; i < _accounts.length; i++) 
             await _dai.mint(_accounts[i], value, {from: _minter});
+    },
+
+    /**
+     * Add every address in _accounts to Tanda Group _group as a Policyholder
+     * @param _group truffle-contract object of Group contract
+     * @param _accounts array of addresses to add to Group contract as Policyholders
+     * @param _subgroups array of integers corresponding to account subgroup id
+     * @param _secretary address permitted to add Policyholders in the Group contract
+     */
+    simAddPolicyholder: async (_group, _accounts, _subgroups, _secretary) => {
+        for(let i = 0; i < _accounts.length; i++)
+            await _group.addPolicyholder(_accounts[i], _subgroups[i], {from: _secretary});
+    },
+
+    /**
+     * Pay premium in Tanda Group for every address in _accounts as Policyholder
+     * @param _group truffle-contract object of Group contract
+     * @param _dai truffle-contract object of Dai contract
+     * @param _period uint period index to participate in
+     * @param _accounts array of addresses to pay Premium to Group contract as Policyholder
+     */
+    simMakePayment: async (_group, _dai, _period, _accounts) => {
+        for(let i = 0; i < _accounts.length; i++) {
+            let payment = await _group.calculatePayment(_accounts[i]);
+            await _dai.approve(_group.address, payment, {from: _accounts[i]});
+            await _group.makePayment(_period, {from: _accounts[i]});
+        }
+    },
+
+    /**
+     * Return the Dai balances of a given array of accounts
+     * @param _dai truffle-contract Dai ERC20 Token
+     * @param _accounts array of addresses to be queried for Dai balances
+     * @return balances of addresses in _accounts as BN objects
+     */
+    simBalances: async (_dai, _accounts) => {
+        let balances = [];
+        for(let i = 0; i < _accounts.length; i++)
+            balances[i] = await _dai.balanceOf(_accounts[i]);
+        return balances;
     },
 
     /**

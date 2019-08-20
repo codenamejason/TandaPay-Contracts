@@ -20,11 +20,12 @@
   "dependencies": {
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
-    "dotenv": "^8.0.0",
-    "ethereumjs-tx": "^2.0.0",
+    "chai-bn": "^0.1.1",
+    "dotenv": "^8.1.0",
+    "ethereumjs-tx": "^2.1.0",
     "openzeppelin-solidity": "^2.3.0",
-    "openzeppelin-test-helpers": "^0.4.0",
-    "truffle": "^5.0.22",
-    "truffle-hdwallet-provider": "^1.0.10"
+    "openzeppelin-test-helpers": "^0.4.2",
+    "truffle": "^5.0.32",
+    "truffle-hdwallet-provider": "^1.0.16"
   }
 }

@@ -5,7 +5,8 @@ import './Group.sol';
 
 /**
  * @author blOX Consulting LLC
- * Date: 08.11.2019
+ * Date: 08.19.2019
+ * Implementation of Insurance Service/ Group Factory Contract
  */
 contract Service is IService {
 
@@ -58,14 +59,31 @@ contract Service is IService {
     }
 
     function loan(address _group, uint _months) public {
-        uint total = Group(_group).groupPremium();
-        require(Dai.balanceOf(address(this)) >= total.mul(2), "Insufficient Dai to make Loans!");
+        uint endowment = Group(_group).calculateEndowment(_months);
+        require(Dai.balanceOf(address(this)) >= endowment, "Insufficient Dai to make Loans!");
         require(!Group(_group).loaned(), "Cannot loan to a group twice!");
 
         address secretary = Group(_group).getSecretary();
-        Dai.transfer(secretary, total.mul(2));
-        Group(_group).makeLoan(_months);
+        Dai.transfer(secretary, endowment);
+        Group(_group).makeLoan(endowment, _months);
         emit Loaned(_group);
     }
 
+    ///INTERFACE VIEWABLE IMPLEMENTATION///
+
+    function isAdmin(address _query) public view returns (bool) {
+        return administrators[_query];
+    }
+
+    function isSecretary(address _query) public view returns (uint _index) {
+        return secretaries[_query];
+    }
+
+    function getGroup(uint _index) public view returns (address _group) {
+        return groups[_index];
+    }
+
+    function getGroupCount() public view returns (uint _index) {
+        return groupCount;
+    }
 }
