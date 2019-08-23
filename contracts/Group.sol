@@ -16,9 +16,11 @@ contract Group is IGroup, Secondary {
      * Determine whether the liquidity contract is accessable by the Secretary
      */
     modifier liquidityLock() {
-        uint range = block.timestamp - origin;
-        uint bound = range.mod(30);
-        require(origin == 0 || bound <= 6 days, "Liquidity Stake is currently Locked!");
+        if (!isLobby()) {
+            uint range = block.timestamp - origin;
+            uint bound = range.mod(30);
+            require(origin == 0 || bound <= 6 days, "Liquidity Stake is currently Locked!");
+        }
         _;
     }
 
@@ -72,7 +74,7 @@ contract Group is IGroup, Secondary {
         secretary = _secretary;
         currentPeriod = 0;
         uint total = _volume.mul(_payout);
-        Liquidity = new LiquidityLock(total.mul(2), _secretary, _dai);
+        Liquidity = new LiquidityLock(total, _secretary, _dai);
         Dai = IERC20(_dai);
         volume = _volume;
         payout = _payout;
@@ -166,7 +168,7 @@ contract Group is IGroup, Secondary {
         uint loan = calculateLoanPayment();
         uint insurance = total.sub(loan);
         Dai.transferFrom(msg.sender, address(this), insurance);
-        //Dai.transferFrom(msg.sender, primary(), loan);
+        Dai.transferFrom(msg.sender, primary(), loan);
         participantIndices[_period] = participantIndices[_period].add(1);
         uint index = participantIndices[_period];
         participants[_period][index] = msg.sender;
@@ -203,12 +205,34 @@ contract Group is IGroup, Secondary {
 
     ///INTERFACE VIEWABLE FUNCTIONS///
 
+    function isLobby() public view returns (bool) {
+        if (next == false) {
+            uint nextPeriod = currentPeriod.add(1);
+            if (periodLocks[nextPeriod][0] == 0)
+                return true;
+        }
+        return false;
+    }
+
+    function doNext() public view returns (bool) {
+        return next;
+    }
+
     function getSecretary() public view returns (address) {
         return secretary;
     }
 
     function getLiquidity() public view returns (address) {
         return address(Liquidity);
+    }
+
+    function withdrawable() public view returns (bool) {
+        uint range = block.timestamp - origin;
+        uint bound = range.mod(30);
+        if (origin == 0 || bound <= 6 days)
+            return true;
+        else
+            return false;
     }
 
     function activePeriod() public view returns (uint) {
@@ -258,7 +282,7 @@ contract Group is IGroup, Secondary {
     }
 
     function calculateLoanPayment() public view returns (uint) {
-        return loanDebt.sub((loanMonths.add(1)).mul(groupSize));
+        return loanDebt.div((loanMonths.add(1)).mul(groupSize));
     }
 
     function calculateExpectedPayout(uint _period) public view returns (uint) {
@@ -294,6 +318,18 @@ contract Group is IGroup, Secondary {
 
     function viewPool(uint _period) public view returns (uint _pool) {
         return claimPools[_period];
+    }
+
+    function isPolicyholder(address _query) public view returns (uint _subgroup) {
+        return policyholders[_query];
+    }
+
+    function getSize() public view returns (uint _size) {
+        return groupSize;
+    }
+
+    function getSubgroupSize(uint _index) public view returns (uint _size) {
+        return subgroupCounts[_index];
     }
 
     function isParticipant(uint _period, address _query) public view returns (uint _index) {

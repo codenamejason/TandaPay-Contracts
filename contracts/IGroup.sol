@@ -144,6 +144,18 @@ contract IGroup {
     ///VIEWABLE FUNCTIONS///
 
     /**
+     * Determine whether the current group is in the lobby
+     * @return true if the current active period is Lobby, and false otherwise
+     */
+    function isLobby() public view returns (bool);
+
+    /**
+     * Determine whether the Group is scheduled to start the next Period
+     * @return true if the next flag is up, and false otherwise
+     */
+    function doNext() public view returns (bool);
+
+    /**
      * Return the address of the Group Contract's secretary role
      * @return address of Secretary
      */
@@ -154,6 +166,12 @@ contract IGroup {
      * @return address of Liquidity Lock contract
      */
     function getLiquidity() public view returns (address);
+
+    /**
+     * Determine whether the liquidity contract can be withdrawn from currently
+     * @return true if the liquidity contract can be emptied, and false otherwise
+     */
+    function withdrawable() public view returns (bool);
 
     /**
      * Get the index of the currently active period
@@ -230,6 +248,26 @@ contract IGroup {
      * @return _pool uint value of Dai stored during that Period
      */
     function viewPool(uint _period) public view returns (uint _pool);
+
+    /**
+     * Determine whether a specified address is a policyholder in this Group
+     * @param _query address being queried for policyholder role
+     * @return _subgroup uint subgroup index of policyholder; returns 0 if not policyholder
+     */
+    function isPolicyholder(address _query) public view returns (uint _subgroup);
+
+    /**
+     * Return the number of policyholders in this Group
+     * @return _size uint policyholders index
+     */
+    function getSize() public view returns (uint _size);
+
+    /**
+     * Determine the number of policyholders within a given subgroup
+     * @param _index uint index of subgroup being queried
+     * @return _size uint subgroup size
+     */
+    function getSubgroupSize(uint _index) public view returns (uint _size);
 
     /**
      * Determine whether an address is a participant in a specified Period

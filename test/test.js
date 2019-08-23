@@ -8,6 +8,7 @@
 const DaiContract = artifacts.require('./DaiContract');
 const GroupContract = artifacts.require('./Group');
 const ServiceContract = artifacts.require('./Service');
+const LiquidityContract = artifacts.require('./LiquidityLock');
 const Simulation = require("./helpers/Simulation.js");
 
 require('chai')
@@ -44,7 +45,7 @@ contract("TandaPay Test Suite", async (accounts) => {
         await Simulation.mintAccounts(Dai, 1000, policyholders, admin);
     });
     describe('Unit Tests', async () => {
-        describe('Service Unit Tests', async () => {
+        /* describe('Service Unit Tests', async () => {
             let deployedAddress;
             describe('Service Test 1: addAdmin()', async () => {
                 let preIsAdmin, postIsAdmin;
@@ -201,198 +202,292 @@ contract("TandaPay Test Suite", async (accounts) => {
                         differences[i].should.be.a.bignumber.that.equal(expectedDifference);
                 });
             });
-        });
+        }); */
         describe('Group Unit Tests', async () => {
             describe('Group Test 1: addPolicyholder()', async () => {
+                let preIsPolicyholder, postIsPolicyholder;
+                let preGroupCount, postGroupCount;
+                let preSubgroupCount, postSubgroupCount;
+                let increment;
                 before(async () => {
-
+                    increment = new web3.utils.BN(1);
+                    preIsPolicyholder = await Group.isPolicyholder(policyholders[0]);
+                    preGroupCount = await Group.getSize();
+                    preSubgroupCount = await Group.getSubgroupSize(subgroups[0]);
+                    await Group.addPolicyholder(policyholders[0], subgroups[0], {from: secretary});
+                    postIsPolicyholder = await Group.isPolicyholder(policyholders[0]);
+                    postGroupCount = await Group.getSize();
+                    postSubgroupCount = await Group.getSubgroupSize(subgroups[0]);
                 });
                 it('Address is not policyholder before added', () => {
-
-                });
-                it('Subgroup 1 has size of 0 before added', () => {
-
-                });
-                it('Group has size of 0 before added', () => {
-
+                    let expectedSubgroup = new web3.utils.BN(0);
+                    preIsPolicyholder.should.be.bignumber.that.equal(expectedSubgroup);
                 });
                 it('Address is policyholder after added', () => {
-
+                    let expectedSubgroup = new web3.utils.BN(subgroups[0]);
+                    postIsPolicyholder.should.be.bignumber.that.equal(expectedSubgroup);
                 });
-                it('Subgroup 1 has size of 1 before added', () => {
-
+                it('Subgroup size increments by 1', () => {
+                    postSubgroupCount.should.be.bignumber.that.equal(preSubgroupCount.add(increment));
                 });
-                it('Policyholder address can be parsed to subgroup index 1 after added', () => {
-
-                });
-                it('Group has size of 1 after added', () => {
-
+                it('Group size increments by 1', () => {
+                    postGroupCount.should.be.bignumber.that.equal(preGroupCount.add(increment));
                 });
             });
             describe('Group Test 2: changeSubgroup()', async () => {
+                let preSubgroup, postSubgroup;
+                let preSubgroupSize, postSubgroupSize;
+                let preNewSubgroupSize, postNewSubgroupSize;
+                let increment;
                 before(async () => {
-                    
+                    increment = new web3.utils.BN(1);
+                    preSubgroup = await Group.isPolicyholder(policyholders[0]);
+                    preSubgroupSize = await Group.getSubgroupSize(preSubgroup);
+                    preNewSubgroupSize = await Group.getSubgroupSize(preSubgroup.add(increment));
+                    await Group.changeSubgroup(policyholders[0], preSubgroup.add(increment), {from: secretary});
+                    postSubgroup = await Group.isPolicyholder(policyholders[0]);
+                    postSubgroupSize = await Group.getSubgroupSize(preSubgroup);
+                    postNewSubgroupSize = await Group.getSubgroupSize(postSubgroup);
                 });
-                it('Address parsed to subgroup index 1 before changed', () => {
-
+                it('Address parses to old subgroup before being changed', async () => {
+                    preSubgroup.should.be.bignumber.that.not.equal(postSubgroup);
                 });
-                it('Subgroup 1 has size of 1 before changed', () => {
-
+                it('Address parses to new subgroup after being changed', async () => {
+                    postSubgroup.should.be.bignumber.that.equal(preSubgroup.add(increment));
                 });
-                it('Subgroup 2 has size of 0 before changed', () => {
-
+                it('Old Subgroup Decrements size after being changed', async () =>  {
+                    preSubgroupSize.should.be.bignumber.that.equal(postSubgroupSize.add(increment));
                 });
-                it('Address parsed to subgroup index 2 after changed', () => {
-
-                });
-                it('Subgroup 1 has size of 0 after changed', () => {
-
-                });
-                it('Subgroup 2 has size of 1 after changed', () => {
-
+                it('New Subgroup Increments size after being changed', async () => {
+                    preNewSubgroupSize.should.be.bignumber.that.equal(postNewSubgroupSize.sub(increment));
                 });
             });
             describe('Group Test 3: removePolicyholder()', async () => {
+                let preIsPolicyholder, postIsPolicyholder;
+                let preGroupCount, postGroupCount;
+                let preSubgroupCount, postSubgroupCount;
+                let increment;
                 before(async () => {
-
+                    increment = new web3.utils.BN(1);
+                    preIsPolicyholder = await Group.isPolicyholder(policyholders[0]);
+                    preGroupCount = await Group.getSize();
+                    preSubgroupCount = await Group.getSubgroupSize(preIsPolicyholder);
+                    await Group.removePolicyholder(policyholders[0], {from: secretary});
+                    postIsPolicyholder = await Group.isPolicyholder(policyholders[0]);
+                    postGroupCount = await Group.getSize();
+                    postSubgroupCount = await Group.getSubgroupSize(preIsPolicyholder);
                 });
                 it('Address is policyholder before removed', () => {
-
-                });
-                it('Subgroup 2 has size of 1 before removed', () => {
-
+                    let unexpectedSubgroup = new web3.utils.BN(0);
+                    preIsPolicyholder.should.be.bignumber.that.not.equal(unexpectedSubgroup);
                 });
                 it('Address is not policyholder after removed', () => {
-
+                    let expectedSubgroup = new web3.utils.BN(0);
+                    postIsPolicyholder.should.be.bignumber.that.equal(expectedSubgroup);
                 });
-                it('Subgroup 2 has size of 0 after removed', () => {
-
+                it('Group Count Decrements after removed', () => {
+                    preGroupCount.should.be.bignumber.that.equal(postGroupCount.add(increment));
+                });
+                it('Subgroup Count Decrements after removed', () => {
+                    preSubgroupCount.should.be.bignumber.that.equal(postSubgroupCount.add(increment));
                 });
             });
             describe('Group Test 4: makeLoan()', async () => {
+                let preLoaned, postLoaned;
+                let preLoanDebt, postLoanDebt;
+                let preLoanMonths, postLoanMonths;
+                let endowment, months;
+                let zero;
                 before(async () => {
-
+                    zero = new web3.utils.BN(0);
+                    preLoaned = await Group.loaned();
+                    let preState = await Group.viewLoan();
+                    preLoanDebt = preState._debt;
+                    preLoanMonths = preState._months;
+                    months = new web3.utils.BN(6);
+                    endowment = await Group.calculateEndowment(months);
+                    await Dai.mint(Service.address, endowment, {from: admin});
+                    await Service.loan(Group.address, months);
+                    postLoaned = await Group.loaned();
+                    let postState = await Group.viewLoan();
+                    postLoanDebt = postState._debt;
+                    postLoanMonths = postState._months;
                 });
                 it('Group is not loaned before loaned', () => {
-
+                    preLoaned.should.be.false;
                 });
-                it('Group debt and months to repay are 0 before loaned', () => {
-
+                it('Group Debt is 0 before loaned', () => {
+                    preLoanDebt.should.be.bignumber.that.equal(zero);
+                });
+                it('Group Months to Repay is 0 before loaned', () => {
+                    preLoanMonths.should.be.bignumber.that.equal(zero);
                 });
                 it('Group is loaned after loaned', () => {
-
+                    postLoaned.should.be.true;
                 });
-                it('Group debt and months to repay are non-zero after loaned', () => {
-
+                it('Group Debt reflects endowment after loaned', () => {
+                    postLoanDebt.should.be.bignumber.that.equal(endowment);
+                });
+                it('Group Months to Repay is 6 after loaned', () => {
+                    postLoanMonths.should.be.bignumber.that.equal(months);
                 });
             });
             describe('Group Test 5: withdraw()', async () => {
+                let LiquidLock;
+                let deposit;
+                let noLiquid, preLiquid, postLiquid;
+                let preBalance, postBalance;
                 before(async () => {
-                    
+                    let liquidityAddress = await Group.getLiquidity();
+                    LiquidLock = await LiquidityContract.at(liquidityAddress);
+                    noLiquid = await LiquidLock.liquid();
+                    deposit = new web3.utils.BN(1500);
+                    await Dai.transfer(liquidityAddress, deposit, {from: secretary});
+                    preBalance = await Dai.balanceOf(secretary);
+                    preLiquid = await LiquidLock.liquid();
+                    await Group.withdraw({from: secretary});
+                    postBalance = await Dai.balanceOf(secretary);
+                    postLiquid = await LiquidLock.liquid();
+                });
+                it('Contract is not liquid before Secretary deposits', () => {
+                    noLiquid.should.be.false;
                 });
                 it('Contract is liquid before withdraw', () => {
-
-                });
-                it('Secretary has X Dai before withdraw', () => {
-
+                    preLiquid.should.be.true;
                 });
                 it('Contract is not liquid after withdraw', () => {
-
+                    postLiquid.should.be.false;
                 });
-                it('Secretary has (X + Withdrawn) Dai after withdraw', () => {
-
+                it('Secretary is given Dai withdrawn from Liquidity Contract', () => {
+                    preBalance.should.be.bignumber.that.equal(postBalance.sub(deposit));
                 });
             });
             describe('Group Test 6: startGroup()', async () => {
+                let preSubperiod, postSubperiod;
+                let prePeriod, postPeriod;
+                let preNext, postNext;
                 before(async () => {
-
+                    prePeriod = await Group.activePeriod();
+                    preSubperiod = await Group.getSubperiod(prePeriod);
+                    preNext = await Group.doNext();
+                    await Simulation.simAddPolicyholder(Group, policyholders, subgroups, secretary);
+                    await Group.startGroup({from: secretary});
+                    postPeriod = await Group.activePeriod();
+                    postSubperiod = await Group.getSubperiod(postPeriod);
+                    postNext = await Group.doNext();
                 });
                 it('Group period state is subperiod.LOBBY before started', () => {
-
+                    let expectedSubperiod = new web3.utils.BN(0);
+                    preSubperiod.should.be.bignumber.that.equal(expectedSubperiod);
                 });
                 it('Group period is N before started', () => {
-
+                    let expectedPeriod = new web3.utils.BN(0);
+                    prePeriod.should.be.bignumber.that.equal(expectedPeriod);
+                });
+                it('Group not flagged to advance periods before started', () => {
+                    preNext.should.be.false;
                 });
                 it('Group period state is subperiod.PRE after started', () => {
-
+                    let expectedSubperiod = new web3.utils.BN(1);
+                    postSubperiod.should.be.bignumber.that.equal(expectedSubperiod);
                 });
                 it('Group period is (N + 1) after started', () => {
-
+                    let expectedPeriod = new web3.utils.BN(1);
+                    postPeriod.should.be.bignumber.that.equal(expectedPeriod);
                 });
-                it('Group flagged to start a new period when last is remitted', () => {
-
+                it('Group flagged to advance periods after started', () => {
+                    postNext.should.be.true;
                 });
             });
             describe('Group Test 7: stopGroup()', async () => {
+                let preSubperiod, postSubperiod;
+                let preNext, postNext;
+                let preRemitPeriod, postRemitPeriod;
                 before(async () => {
-
+                    await Simulation.passDays(4);
+                    preRemitPeriod = await Group.activePeriod();
+                    preSubperiod = await Group.getSubperiod(preRemitPeriod);
+                    preNext = await Group.doNext();
+                    await Group.stopGroup({from: secretary});
+                    postNext = await Group.doNext();
+                    await Simulation.passDays(33);
+                    await Service.remitGroup(Group.address);
+                    postRemitPeriod = await Group.activePeriod();
+                    postSubperiod = await Group.getSubperiod(postRemitPeriod);
                 });
                 it('Group period state is subperiod.ACTIVE before stopped', () => {
-
+                    let expectedSubperiod = new web3.utils.BN(2);
+                    preSubperiod.should.be.bignumber.that.equal(expectedSubperiod);
                 });
                 it('Group flagged to start a new period before stopped', () => {
-
+                    preNext.should.be.true;
                 });
                 it('Group is flagged to not start any new periods after stopped', () => {
-
+                    postNext.should.be.false;
                 });
-                it('Active Group period state eventually returns to subperiod.LOBBY after stopped', () => {
-
+                it('Active Period Increments', () => {
+                    let increment = new web3.utils.BN(1)
+                    preRemitPeriod.should.be.bignumber.that.equal(postRemitPeriod.sub(increment));
+                });
+                it('Subperiod Stuck in Lobby', async () => {
+                    let expectedPost = new web3.utils.BN(0);
+                    postSubperiod.should.be.bignumber.that.equal(expectedPost);
+                    await Simulation.passDays(100);
+                    let period = await Group.activePeriod();
+                    let empiricalSubperiod = await Group.getSubperiod(period);
+                    empiricalSubperiod.should.be.bignumber.that.equal(expectedPost);
                 });
             });
-            describe('Group Test 8: endPeriod()', async () => {
+            describe('Group Test 8: makePayment()', async () => {
+                let preServiceBalance, postServiceBalance;
+                let prePolicyholderBalance, postPolicyholderBalance;
+                let preDaiPot, postDaiPot;
+                let preParticipants, postParticipants;
+                let loanPayment, potPayment, totalPayment;
+                let period;
                 before(async () => {
+                    await Group.startGroup({from: secretary});
+                    period = await Group.activePeriod();
+                    let subgroup = await Group.isPolicyholder(policyholders[0]);
+                    let subgroupSize = await Group.getSubgroupSize(subgroup);
+                    let premium = await Group.calculatePremium();
+                    let overpayment = await Group.calculateOverpayment(subgroupSize);
+                    potPayment = overpayment.add(premium);
+                    loanPayment = await Group.calculateLoanPayment();
+                    totalPayment = potPayment.add(loanPayment);
 
+                    preServiceBalance = await Dai.balanceOf(Service.address);
+                    prePolicyholderBalance = await Dai.balanceOf(policyholders[0]);
+                    preDaiPot = await Group.viewPool(period);
+                    preParticipants = await Group.activeIndex(period);
+                    await Dai.approve(Group.address, totalPayment, {from: policyholders[0]});
+                    await Group.makePayment(period, {from: policyholders[0]});
+                    postServiceBalance = await Dai.balanceOf(Service.address);
+                    postPolicyholderBalance = await Dai.balanceOf(policyholders[0]);
+                    postDaiPot = await Group.viewPool(period);
+                    postParticipants = await Group.activeIndex(period);
                 });
-                it('Group stored period is N before ended', () => {
-
+                it('Group Period Dai Pot Recieves (Premium + Overpayment) after payment', () => {
+                    preDaiPot.should.be.bignumber.that.equal(postDaiPot.sub(potPayment));
                 });
-                it('Group months to repay is M before ended', () => {
-
+                it('Policyholder Dai Withdrew (Premium + Overpayment + Loan) after payment', () => {
+                    prePolicyholderBalance.should.be.bignumber.that.equal(postPolicyholderBalance.add(totalPayment));
                 });
-                it('Group stored period is (N + 1) after ended', () => {
-
+                it('Service Recieves Dai from Loan Repayment', () => {
+                    preServiceBalance.should.be.bignumber.that.equal(postServiceBalance.sub(loanPayment));
                 });
-                it('Group months to repay is (M - 1) after ended', () => {
-
+                it('Participants index increments after payment', () => {
+                    let increment = new web3.utils.BN(1);
+                    preParticipants.should.be.bignumber.that.equal(postParticipants.sub(increment));
+                });
+                it('Policyholder can be parsed to Participant Index', async () => {
+                    let period = await Group.activePeriod();
+                    let index = await Group.isParticipant(period, policyholders[0]);
+                    let zero = new web3.utils.BN(0);
+                    index.should.be.bignumber.that.not.equal(zero);
                 });
             });
-            describe('Group Test 9: makePayment()', async () => {
-                before(async () => {
-
-                });
-                it('Group period Dai pot is N before payment', () => {
-
-                });
-                it('Policyholder Dai balance is M before payment', () => {
-
-                });
-                it('Period participants index is O before payment', () => {
-
-                });
-                it('Servie Dai balance is P before loan payment', () => {
-
-                });
-                it('Policyholder is not a period participant before payment', () => {
-
-                });
-                it('Group period Dai pot is (N + payment) after payment', () => {
-
-                });
-                it('Policyholder Dai balance is (M - payment) after payment', () => {
-
-                });
-                it('Period participants index is (O + 1) after payment', () => {
-
-                });
-                it('Service Dai balance is (P + loan payment) after payment', () => {
-
-                });
-                it('Policyholder maps to period participant index after payment', () => {
-
-                }); 
-            });
-            describe('Group Test 10: submitClaim()', async () => {
+            describe('Group Test 9: submitClaim()', async () => {
                 before(async () => {
 
                 });
@@ -409,7 +504,7 @@ contract("TandaPay Test Suite", async (accounts) => {
 
                 });
             });
-            describe('Group Test 11: defect()', async () => {
+            describe('Group Test 10: defect()', async () => {
                 before(async () => {
 
                 });
@@ -450,6 +545,23 @@ contract("TandaPay Test Suite", async (accounts) => {
 
                 });
                 it('Claim made in toxic subgroup is not paid out at remitGroup', () => {
+
+                });
+            });
+            describe('Group Test 11: endPeriod()', async () => {
+                before(async () => {
+
+                });
+                it('Group stored period is N before ended', () => {
+
+                });
+                it('Group months to repay is M before ended', () => {
+
+                });
+                it('Group stored period is (N + 1) after ended', () => {
+
+                });
+                it('Group months to repay is (M - 1) after ended', () => {
 
                 });
             });
