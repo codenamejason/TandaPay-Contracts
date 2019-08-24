@@ -314,4 +314,12 @@ contract IGroup {
      * @return _claimant address of claimant stored at the given index; returns 0 if null
      */
     function indexToClaimant(uint _period, uint _index) public view returns (address _claimant);
+
+    /**
+     * Determine the defection count of a subgroup during a period
+     * @param _period uint index of Period being queried for defections
+     * @param _subgroup uint index of Subgroup being queried for defections
+     * @return _count uint number of defectors in the subgroup during the specified period
+     */
+    function getDefectionCount(uint _period, uint _subgroup) public view returns (uint _count);
 }

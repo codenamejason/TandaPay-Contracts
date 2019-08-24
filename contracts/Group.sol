@@ -198,9 +198,11 @@ contract Group is IGroup, Secondary {
         defectionCounts[_period][subgroup] = defectionCounts[_period][subgroup].add(1);
         if(defectionCounts[_period][subgroup] >= DEFECTION_THRESHOLD)
             toxicSubgroups[_period][subgroup] = true;
-        Dai.transfer(msg.sender, calculatePremium());
+        uint premium = calculatePremium();
+        Dai.transfer(msg.sender, premium);
         removeParticipant(_period, participantIndex);
         emit Defected(msg.sender, _period);
+        claimPools[_period] = claimPools[_period].sub(premium);
     }
 
     ///INTERFACE VIEWABLE FUNCTIONS///
@@ -354,6 +356,10 @@ contract Group is IGroup, Secondary {
 
     function indexToClaimant(uint _period, uint _index) public view returns (address _claimant) {
         return claims[_period][_index];
+    }
+
+    function getDefectionCount(uint _period, uint _subgroup) public view returns (uint _count) {
+        return defectionCounts[_period][_subgroup];
     }
 
     ///INTERNAL FUNCTIONS///

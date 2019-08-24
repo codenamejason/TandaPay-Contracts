@@ -45,7 +45,7 @@ contract("TandaPay Test Suite", async (accounts) => {
         await Simulation.mintAccounts(Dai, 1000, policyholders, admin);
     });
     describe('Unit Tests', async () => {
-        /* describe('Service Unit Tests', async () => {
+        describe('Service Unit Tests', async () => {
             let deployedAddress;
             describe('Service Test 1: addAdmin()', async () => {
                 let preIsAdmin, postIsAdmin;
@@ -202,7 +202,7 @@ contract("TandaPay Test Suite", async (accounts) => {
                         differences[i].should.be.a.bignumber.that.equal(expectedDifference);
                 });
             });
-        }); */
+        });
         describe('Group Unit Tests', async () => {
             describe('Group Test 1: addPolicyholder()', async () => {
                 let preIsPolicyholder, postIsPolicyholder;
@@ -488,81 +488,89 @@ contract("TandaPay Test Suite", async (accounts) => {
                 });
             });
             describe('Group Test 9: submitClaim()', async () => {
+                let period, subperiod;
+                let preClaimIndex, postClaimIndex;
+                let zero, increment;
                 before(async () => {
-
+                    zero = new web3.utils.BN(0);
+                    increment = new web3.utils.BN(1);
+                    await Simulation.passDays(3);
+                    period = await Group.activePeriod();
+                    subperiod = await Group.getSubperiod(period);
+                    preClaimIndex = await Group.claimIndex(period);
+                    await Group.submitClaim(period, policyholders[0], {from: secretary});
+                    postClaimIndex = await Group.claimIndex(period);
+                });
+                it('Group subperiod is subperiod.ACTIVE during submit', () => {
+                    expectedSubperiod = new web3.utils.BN(2);
+                    subperiod.should.be.bignumber.that.equal(expectedSubperiod);
                 });
                 it('Group period claim index is N before submitted', () => {
-
-                });
-                it('Address is not claimant before submitted', () => {
-
+                    preClaimIndex.should.be.bignumber.that.equal(zero);
                 });
                 it('Group period claim index is (N + 1) after submitted', () => {
-
+                    postClaimIndex.should.be.bignumber.that.equal(preClaimIndex.add(increment));
                 });
-                it('Address maps to claim index after submitted', () => {
-
+                it('Address maps to claim index after submitted', async () => {
+                    let index = await Group.isClaimant(period, policyholders[0]);
+                    index.should.be.bignumber.that.not.equal(zero);
                 });
             });
             describe('Group Test 10: defect()', async () => {
+                let period, subperiod;
+                let premium;
+                let preParticipantIndex, postParticipantIndex;
+                let preClaimIndex, postClaimIndex;
+                let preDefectorBalance, postDefectorBalance;
+                let preDaiPot, postDaiPot;
+                let preDefectionCount, postDefectionCount;
+                let zero, increment;
                 before(async () => {
-
+                    zero = new web3.utils.BN(0);
+                    increment = new web3.utils.BN(1);
+                    period = await Group.activePeriod();
+                    Simulation.passDays(30);
+                    subperiod = await Group.getSubperiod(period);
+                    preParticipantIndex = await Group.activeIndex(period);
+                    preClaimIndex = await Group.claimIndex(period);
+                    preDefectorBalance = await Dai.balanceOf(policyholders[0]);
+                    preDaiPot = await Group.viewPool(period);
+                    let subgroup = await Group.isPolicyholder(policyholders[0]);
+                    preDefectionCount = await Group.getDefectionCount(period, subgroup);
+                    await Group.defect(period, {from: policyholders[0]});
+                    postParticipantIndex = await Group.activeIndex(period);
+                    postClaimIndex = await Group.claimIndex(period);
+                    postDefectorBalance = await Dai.balanceOf(policyholders[0]);
+                    postDaiPot = await Group.viewPool(period);
+                    postDefectionCount = await Group.getDefectionCount(period, subgroup);
+                    premium = await Group.calculatePremium();
                 });
-                it('Participant index is N before defection', () => {
-
+                it('Defection occurs in subperiod state subperiod.POST', () => {
+                    let expectedSubperiod = new web3.utils.BN(3);
+                    subperiod.should.be.bignumber.that.equal(expectedSubperiod);
                 });
-                it('Address is period participant before defection', () => {
-
+                it('Participant Index Decrements after defection', () => {
+                    preParticipantIndex.should.be.bignumber.that.equal(postParticipantIndex.add(increment));
                 });
-                it('Defector subgroup has period defection count of 1 before defection', () => {
-
+                it('Address can no longer be parsed to participant index after defection', async () => {
+                    let index = await Group.isParticipant(period, policyholders[0]);
+                    index.should.be.bignumber.that.equal(zero);
                 });
-                it('Subgroup is not period toxic subgroup before defection', () => {
-
+                it('Since claimant defected, Claim Index Decrements after defection', () => {
+                    preClaimIndex.should.be.bignumber.that.equal(postClaimIndex.add(increment));
                 });
-                it('Period Dai pot is M before defection', () => {
-
+                it('Address can no longer be parsed to claimant index after defection', async () => {
+                    let index = await Group.isClaimant(period, policyholders[0]);
+                    index.should.be.bignumber.that.equal(zero);
                 });
-                it('Defector address has balance of X Dai before defection', () => {
-
+                it('Period Dai pot has Premium Dai withdrawn after defection', () => {
+                    preDaiPot.should.be.bignumber.that.equal(postDaiPot.add(premium));
                 });
-                it('Participant index is (N - 1) after defection', () => {
-
+                it('Address has Period Dai deposited after defection', () => {
+                    preDefectorBalance.should.be.bignumber.that.equal(postDefectorBalance.sub(premium));
                 });
-                it('Address is not period participant after defection', () => {
-
-                });
-                it('Defector subgroup has period defection count of 2 after defection', () => {
-
-                });
-                it('Subgroup is period toxic subgroup after defection', () => {
-
-                });
-                it('Period Dai pot is (M - Premium) after defection', () => {
-
-                });
-                it('Defector address has balance of (X + Premium) after defection', () => {
-
-                });
-                it('Claim made in toxic subgroup is not paid out at remitGroup', () => {
-
-                });
-            });
-            describe('Group Test 11: endPeriod()', async () => {
-                before(async () => {
-
-                });
-                it('Group stored period is N before ended', () => {
-
-                });
-                it('Group months to repay is M before ended', () => {
-
-                });
-                it('Group stored period is (N + 1) after ended', () => {
-
-                });
-                it('Group months to repay is (M - 1) after ended', () => {
-
+                it('Subgroup defection count increments after defection', () => {
+                    preDefectionCount.should.be.bignumber.that.equal(postDefectionCount.sub(increment));
                 });
             });
         });
