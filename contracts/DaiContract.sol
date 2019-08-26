@@ -4,7 +4,7 @@ import 'openzeppelin-solidity/contracts/token/ERC20/ERC20Mintable.sol';
 
 /**
  * @author blOX Consulting
- * Date: 7.15.19
+ * Date: 8.26.19
  * 
  * ERC20 Placeholder for Dai in TandaPay Demonstration
  * @dev Literally ERC20Mintable

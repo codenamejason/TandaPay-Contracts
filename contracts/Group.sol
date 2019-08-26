@@ -5,7 +5,7 @@ import 'openzeppelin-solidity/contracts/ownership/Secondary.sol';
 
 /**
  * @author blOX Consulting LLC
- * Date: 08.19.2019
+ * Date: 08.26.2019
  * Implementation of Group Insurance Contract
  */
 contract Group is IGroup, Secondary {

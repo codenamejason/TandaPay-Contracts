@@ -5,7 +5,7 @@ import './Group.sol';
 
 /**
  * @author blOX Consulting LLC
- * Date: 08.19.2019
+ * Date: 08.26.2019
  * Implementation of Insurance Service/ Group Factory Contract
  */
 contract Service is IService {

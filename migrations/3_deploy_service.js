@@ -4,7 +4,7 @@ const ServiceContract = artifacts.require("./Service");
 
 /**
  * @author blOX Consulting LLC
- * @date 8.11.19
+ * @date 8.26.19
  * Truffle migration TestGroup
  */
 module.exports = async (deployer) => {

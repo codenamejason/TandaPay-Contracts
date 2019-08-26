@@ -7,7 +7,7 @@ import './LiquidityLock.sol';
 
 /**
  * @author blOX Consulting LLC
- * Date: 08.19.2019
+ * Date: 08.26.2019
  * Interface for Group Insurance Contract
  */
 contract IGroup {
