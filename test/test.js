@@ -544,6 +544,8 @@ contract("TandaPay Test Suite", async (accounts) => {
                     postDaiPot = await Group.viewPool(period);
                     postDefectionCount = await Group.getDefectionCount(period, subgroup);
                     premium = await Group.calculatePremium();
+                    subgroupSize = await Group.getSubgroupSize(subgroup);
+                    overpayment = await Group.calculateOverpayment(subgroupSize);
                 });
                 it('Defection occurs in subperiod state subperiod.POST', () => {
                     let expectedSubperiod = new web3.utils.BN(3);
@@ -563,11 +565,11 @@ contract("TandaPay Test Suite", async (accounts) => {
                     let index = await Group.isClaimant(period, policyholders[0]);
                     index.should.be.bignumber.that.equal(zero);
                 });
-                it('Period Dai pot has Premium Dai withdrawn after defection', () => {
-                    preDaiPot.should.be.bignumber.that.equal(postDaiPot.add(premium));
+                it('Period Dai pot has Premium+Overpayment Dai withdrawn after defection', () => {
+                    preDaiPot.should.be.bignumber.that.equal(postDaiPot.add(premium).add(overpayment));
                 });
                 it('Address has Period Dai deposited after defection', () => {
-                    preDefectorBalance.should.be.bignumber.that.equal(postDefectorBalance.sub(premium));
+                    preDefectorBalance.should.be.bignumber.that.equal(postDefectorBalance.sub(premium).sub(overpayment));
                 });
                 it('Subgroup defection count increments after defection', () => {
                     preDefectionCount.should.be.bignumber.that.equal(postDefectionCount.sub(increment));
