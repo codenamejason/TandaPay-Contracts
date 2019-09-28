@@ -101,7 +101,8 @@ contract Group is IGroup, Secondary {
         emit Stopped();
     }
 
-    function endPeriod(uint _period) public onlyPrimary {
+    function endPeriod(uint _period) public {
+        require(msg.sender == secretary || msg.sender == primary(), "Only Primary (Admin of Service.sol) or the Secretary may end the Period");
         stripToxicSubgroups(_period);
         payClaims(_period);
         payRefunds(_period);
