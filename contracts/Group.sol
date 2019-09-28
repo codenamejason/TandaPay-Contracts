@@ -195,14 +195,17 @@ contract Group is IGroup, Secondary {
         if(claimIndex != 0)
             removeClaim(_period, claimIndex);
         uint subgroup = policyholders[msg.sender];
+        uint subgroupSize = getSubgroupSize(subgroup);
         defectionCounts[_period][subgroup] = defectionCounts[_period][subgroup].add(1);
         if(defectionCounts[_period][subgroup] >= DEFECTION_THRESHOLD)
             toxicSubgroups[_period][subgroup] = true;
         uint premium = calculatePremium();
-        Dai.transfer(msg.sender, premium);
+        uint overpayment = calculateOverpayment(subgroupSize);
+        uint totalRefunded = premium.add(overpayment);
+        Dai.transfer(msg.sender, totalRefunded);
         removeParticipant(_period, participantIndex);
         emit Defected(msg.sender, _period);
-        claimPools[_period] = claimPools[_period].sub(premium);
+        claimPools[_period] = claimPools[_period].sub(totalRefunded);
     }
 
     ///INTERFACE VIEWABLE FUNCTIONS///
