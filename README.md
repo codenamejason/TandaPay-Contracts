@@ -28,7 +28,7 @@ Welcome to the TandaPay Demo Build! This distribution is built with the intentio
 5. Begin running a local ganache instance 
     5a. Copy mnemonic, reference as $(MNEMONIC) 
     5b. Open new terminal window 
-    5c. Run 'ganache-cli -m "$(MNEMONIC)" -e 10000'
+    5c. Run 'ganache-cli -m "$(MNEMONIC)" -e 10000 -a 100'
     
 ## Testing
 

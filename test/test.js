@@ -214,7 +214,7 @@ contract("TandaPay Test Suite", async (accounts) => {
                     preIsPolicyholder = await Group.isPolicyholder(policyholders[0]);
                     preGroupCount = await Group.getSize();
                     preSubgroupCount = await Group.getSubgroupSize(subgroups[0]);
-                    await Group.addPolicyholder(policyholders[0], subgroups[0], {from: secretary});
+                    await Service.addPolicyholderToGroup(groupAddress, policyholders[0], subgroups[0], {from: admin});
                     postIsPolicyholder = await Group.isPolicyholder(policyholders[0]);
                     postGroupCount = await Group.getSize();
                     postSubgroupCount = await Group.getSubgroupSize(subgroups[0]);
@@ -244,7 +244,7 @@ contract("TandaPay Test Suite", async (accounts) => {
                     preSubgroup = await Group.isPolicyholder(policyholders[0]);
                     preSubgroupSize = await Group.getSubgroupSize(preSubgroup);
                     preNewSubgroupSize = await Group.getSubgroupSize(preSubgroup.add(increment));
-                    await Group.changeSubgroup(policyholders[0], preSubgroup.add(increment), {from: secretary});
+                    await Service.changeSubgroupInGroup(groupAddress, policyholders[0], preSubgroup.add(increment), {from: admin});
                     postSubgroup = await Group.isPolicyholder(policyholders[0]);
                     postSubgroupSize = await Group.getSubgroupSize(preSubgroup);
                     postNewSubgroupSize = await Group.getSubgroupSize(postSubgroup);

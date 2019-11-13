@@ -53,6 +53,11 @@ contract Group is IGroup, Secondary {
         _;
     }
 
+    modifier onlySecretaryOrAdmin() {
+        require(secretary == msg.sender || msg.sender == primary(), "Address is not this Group's Secretary or Service Admin!");
+        _;
+    }
+
     /**
      * Restrict access to Policyholder role
      */
@@ -101,8 +106,7 @@ contract Group is IGroup, Secondary {
         emit Stopped();
     }
 
-    function endPeriod(uint _period) public {
-        require(msg.sender == secretary || msg.sender == primary(), "Only Primary (Admin of Service.sol) or the Secretary may end the Period");
+    function endPeriod(uint _period) public onlySecretaryOrAdmin {
         stripToxicSubgroups(_period);
         payClaims(_period);
         payRefunds(_period);
@@ -129,7 +133,7 @@ contract Group is IGroup, Secondary {
         emit Loaned(loanDebt, loanMonths);
     }
 
-    function addPolicyholder(address _to, uint _subgroup) public onlySecretary onlyLobby {
+    function addPolicyholder(address _to, uint _subgroup) public onlySecretaryOrAdmin onlyLobby {
         require(policyholders[_to] == 0, "Policyholder already exists!");
         require(subgroupCounts[_subgroup] < 7, "Subgroup is full!");
         
@@ -150,7 +154,7 @@ contract Group is IGroup, Secondary {
         emit PolicyholderRemoved(_from);
     }
     
-    function changeSubgroup(address _policyholder, uint _subgroup) public onlySecretary onlyLobby {
+    function changeSubgroup(address _policyholder, uint _subgroup) public onlySecretaryOrAdmin onlyLobby {
         require(subgroupCounts[_subgroup] < 7, "Subgroup is full!");
         
         subgroupCounts[policyholders[_policyholder]] = subgroupCounts[policyholders[_policyholder]].sub(1);

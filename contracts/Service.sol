@@ -58,6 +58,14 @@ contract Service is IService {
         emit Remitted(_group, period);
     }
 
+    function addPolicyholderToGroup(address _group, address _to, uint _subgroup) public onlyAdmin {
+        Group(_group).addPolicyholder(_to, _subgroup);
+    }
+
+    function changeSubgroupInGroup(address _group, address _to, uint _subgroup) public onlyAdmin {
+        Group(_group).changeSubgroup(_to, _subgroup);
+    }
+
     function loan(address _group, uint _months) public {
         uint endowment = Group(_group).calculateEndowment(_months);
         require(Dai.balanceOf(address(this)) >= endowment, "Insufficient Dai to make Loans!");
