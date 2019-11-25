@@ -35,9 +35,11 @@ contract IGroup {
     mapping(uint => uint) participantIndices;
     mapping(uint => uint) claimIndices;
     mapping(uint => uint) claimPools;
+    mapping(uint => uint) totalDefectionCounts;
 
     mapping(uint => mapping(uint => uint)) periodLocks;
     mapping(uint => mapping(uint => uint)) defectionCounts;
+    mapping(uint => mapping(uint => uint)) subgroupParticipantIndices;
     mapping(uint => mapping(uint => bool)) toxicSubgroups;
     mapping(uint => mapping(uint => address)) participants;
     mapping(uint => mapping(address => uint)) participantToIndex;

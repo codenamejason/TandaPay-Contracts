@@ -178,6 +178,8 @@ contract Group is IGroup, Secondary {
         uint index = participantIndices[_period];
         participants[_period][index] = msg.sender;
         participantToIndex[_period][msg.sender] = index;
+        uint subgroup = policyholders[msg.sender];
+        subgroupParticipantIndices[_period][subgroup] = subgroupParticipantIndices[_period][subgroup].add(1);
         emit Paid(msg.sender, _period);
         claimPools[_period] = claimPools[_period].add(insurance);
     }
@@ -202,6 +204,7 @@ contract Group is IGroup, Secondary {
         uint subgroup = policyholders[msg.sender];
         uint subgroupSize = getSubgroupSize(subgroup);
         defectionCounts[_period][subgroup] = defectionCounts[_period][subgroup].add(1);
+        totalDefectionCounts[_period] = totalDefectionCounts[_period].add(1);
         if(defectionCounts[_period][subgroup] >= DEFECTION_THRESHOLD)
             toxicSubgroups[_period][subgroup] = true;
         uint premium = calculatePremium();
@@ -321,6 +324,12 @@ contract Group is IGroup, Secondary {
         _endowment = payment.add(payment.div(_months.sub(1)));
     }
 
+    function getPaidParticipantAmount(uint _period, uint _subgroup) public view 
+        returns (uint _groupParticipantAmount, uint _subgroupParticipantAmount) {
+        _groupParticipantAmount = participantIndices[_period];
+        _subgroupParticipantAmount = subgroupParticipantIndices[_period][_subgroup];
+    }
+
     function viewLoan() public view returns (uint _debt, uint _months) {
         _debt = loanDebt;
         _months = loanMonths;
@@ -366,8 +375,14 @@ contract Group is IGroup, Secondary {
         return claims[_period][_index];
     }
 
+    //Gets defection count for a subgroup in the given period
     function getDefectionCount(uint _period, uint _subgroup) public view returns (uint _count) {
         return defectionCounts[_period][_subgroup];
+    }
+
+    //Gets defection count for the entire group in the given period
+    function getGroupDefectionCount(uint _period) public view returns (uint _count) {
+        return totalDefectionCounts[_period];
     }
 
     ///INTERNAL FUNCTIONS///
