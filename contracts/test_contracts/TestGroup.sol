@@ -497,4 +497,31 @@ contract TestGroup is IGroup, Secondary {
         delete participantToIndex[_period][oldParticipant]; 
     }
 
+    /**
+     * @dev TESTSERVICE Function
+     * Set the internal clock of the TestGroup
+     * @param _time uint UNIX time value to set TestGroup's internal clock
+     */
+    function setTime(uint _time) public {
+        timer.setCurrent(_time);
+    }
+
+    /**
+     * @dev TESTSERVICE Function
+     * Get the TestGroup's current internal clock value
+     * @return current uint the TestGroup's current internal time
+     */
+    function getTime() public view returns (uint current) {
+        current = timer.getCurrent();
+    }
+
+    /**
+     * @dev TESTSERVICE Function
+     * Increment the TestGroup's internal clock by _days days
+     * @param _days uint number of days to increment
+     */
+    function passDays(uint _days) public {
+        timer.incrementDays(_days);
+    }
+
 }

@@ -42,7 +42,7 @@ contract TestService is IService {
         emit AdminRevoked(_from);
     }
 
-    function createGroup(address _to, uint _volume, uint _payout) public onlyAdmin returns (address _group) {
+    function createGroup(address _to, uint _volume, uint _payout) public returns (address _group) {
         require(groups[secretaries[_to]] == address(0), "Address is already a Secretary!");
         TestGroup group = new TestGroup(address(Dai), _to, _volume, _payout);
         groupCount = groupCount.add(1);
