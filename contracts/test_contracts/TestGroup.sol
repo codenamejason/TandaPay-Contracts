@@ -93,7 +93,7 @@ contract TestGroup is IGroup, Secondary {
 
     function startGroup() public onlySecretary onlyLobby {
         currentPeriod = currentPeriod.add(1);
-        origin = timer.getCurrent().sub(3 days);
+        origin = timer.getCurrent();
         setLocks(currentPeriod);
         next = true;
         emit Started();
