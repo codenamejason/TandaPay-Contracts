@@ -82,6 +82,7 @@ contract("TandaPay Defections Test", async (accounts) => {
         console.log("preDaiPot: " + preDaiPot);
 
         await deployedGroup.defect(period, {from: defectorPH});
+        console.log("DEFECT");
         postParticipantIndex = await deployedGroup.activeIndex(period);
         postClaimIndex = await deployedGroup.claimIndex(period);
         postDefectorBalance = await Dai.balanceOf(defectorPH);
@@ -89,10 +90,12 @@ contract("TandaPay Defections Test", async (accounts) => {
         postDefectionCount = await deployedGroup.getDefectionCount(period, subgroup);
         
         await Simulation.passDays(3);
+        preCurrentPeriod = await deployedGroup.getCurrentPeriod();
         await Service.remitGroup(groupAddress, { from: admin });
         postRemittanceSubperiod = await deployedGroup.getSubperiod(period);
         remittedPeriod = period;
         activePeriod = await deployedGroup.activePeriod();
+        postCurrentPeriod = await deployedGroup.getCurrentPeriod();
         postPolicyholderBalances = await Simulation.simBalances(Dai, policyholders);
         postParticipantIndex = await deployedGroup.activeIndex(period);
         postPot = await deployedGroup.viewPool(period);
@@ -107,10 +110,21 @@ contract("TandaPay Defections Test", async (accounts) => {
         preDefectionSubperiod.should.be.bignumber.that.equal(expectedSubperiod);
     });
 
+    it('Current period is not incremented before the remittance', () => {
+        let expectedState = new web3.utils.BN(1);
+        preCurrentPeriod.should.be.a.bignumber.that.equal(expectedState);
+    });
+
     it('Period state is subperiod.ENDED after remittance', () => {
         let expectedState = new web3.utils.BN(4);
         postRemittanceSubperiod.should.be.a.bignumber.that.equal(expectedState);
     });
+
+    it('Current period has incremented after remittance', () => {
+        let expectedState = new web3.utils.BN(2);
+        postCurrentPeriod.should.be.a.bignumber.that.equal(expectedState);
+    });
+
     it('Active period = 1 + remitted period', () => {
         activePeriod.should.be.a.bignumber.that.equal(remittedPeriod.add(new web3.utils.BN(1)));
     });

@@ -260,6 +260,10 @@ contract TestGroup is IGroup, Secondary {
             return currentPeriod;
     }
 
+    function getCurrentPeriod() public view returns (uint) {
+        return currentPeriod;
+    }
+
     function getSubperiod(uint _period) public view returns (uint currentSubperiod) {
         uint preLock = periodLocks[_period][0];
         if (preLock == 0 || preLock > timer.getCurrent())
