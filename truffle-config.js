@@ -14,7 +14,7 @@ module.exports = {
       port: 8545,
       network_id: "*" // Match any network id
     },
-    jack_dev: {
+    jason_dev: {
       provider: () => { return new HDWalletProvider(process.env.MNEMONIC, "http://127.0.0.1:8545", 0, 100) },
       network_id: "*",
       gasLimit: 7000000
